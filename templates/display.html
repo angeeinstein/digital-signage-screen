@@ -416,6 +416,15 @@
             loadNearestFlights();
         }
         
+        // Load flight radar
+        function loadFlightRadar() {
+            const iframe = document.getElementById('flight-radar');
+            const lat = config.location?.lat || 50.0;
+            const lon = config.location?.lon || 8.0;
+            // Using embed parameters to minimize UI
+            iframe.src = `https://globe.adsbexchange.com/?icao=~&lat=${lat}&lon=${lon}&zoom=8.5&enableLabels&extendedLabels=1&trackLabels&SiteLat=${lat}&SiteLon=${lon}&hideSidebar&hideButtons`;
+        }
+        
         // Load nearest flights
         async function loadNearestFlights() {
             try {
@@ -441,11 +450,6 @@
             } catch (error) {
                 console.error('Failed to load nearest flights:', error);
             }
-            // ADS-B Exchange with cleaner embed view
-            const lat = config.location?.lat || 50.0;
-            const lon = config.location?.lon || 8.0;
-            // Using embed parameters to minimize UI
-            iframe.src = `https://globe.adsbexchange.com/?icao=~&lat=${lat}&lon=${lon}&zoom=8.5&enableLabels&extendedLabels=1&trackLabels&SiteLat=${lat}&SiteLon=${lon}&hideSidebar&hideButtons`;
         }
         
         // Load weather
