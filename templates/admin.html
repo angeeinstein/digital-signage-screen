@@ -336,8 +336,12 @@
                 
                 <div class="form-group">
                     <label for="openskyClientSecret">OpenSky API Client Secret (Optional)</label>
-                    <input type="password" id="openskyClientSecret" placeholder="Leave empty for anonymous access">
+                    <div class="input-with-button">
+                        <input type="password" id="openskyClientSecret" placeholder="Leave empty for anonymous access">
+                        <button class="btn btn-info btn-small" onclick="testOpenskyAPI()">🧪 Test API</button>
+                    </div>
                     <div class="help-text">Copy from API Client page - keep this secret!</div>
+                    <div class="test-result" id="openskyTestResult"></div>
                 </div>
                 
                 <div class="form-group">
@@ -345,18 +349,6 @@
                     <input type="number" id="cacheExpiry" value="7" min="1" max="90" step="1">
                     <div class="help-text">How many days to keep cached routes before refreshing (default: 7 days)</div>
                 </div>
-            </div>
-            
-            <div class="form-group">
-                <h3>Manual Route Override</h3>
-                <p class="help-text">Optionally add specific routes manually (automatic discovery will still work for other flights).</p>
-                <div style="display: grid; grid-template-columns: 2fr 1fr 1fr auto; gap: 10px; margin-top: 10px;">
-                    <input type="text" id="routeCallsign" placeholder="Flight (e.g., DLH123)">
-                    <input type="text" id="routeFrom" placeholder="From (e.g., FRA)">
-                    <input type="text" id="routeTo" placeholder="To (e.g., JFK)">
-                    <button class="btn btn-info btn-small" onclick="addRouteToCache()">Add Route</button>
-                </div>
-                <div class="test-result" id="routeCacheResult"></div>
             </div>
         </div>
         
@@ -648,6 +640,48 @@
         function toggleFlightApiSettings() {
             // Currently only airplanes.live is available, so nothing to toggle
             // Function kept for future compatibility
+        }
+        
+        // Test OpenSky API
+        async function testOpenskyAPI() {
+            const clientId = document.getElementById('openskyClientId').value.trim();
+            const clientSecret = document.getElementById('openskyClientSecret').value.trim();
+            const resultDiv = document.getElementById('openskyTestResult');
+            
+            if (!clientId && !clientSecret) {
+                resultDiv.className = 'test-result';
+                resultDiv.innerHTML = '⏳ Testing anonymous access...';
+                resultDiv.style.display = 'block';
+            } else if (!clientId || !clientSecret) {
+                resultDiv.className = 'test-result error';
+                resultDiv.textContent = '❌ Please provide both Client ID and Client Secret, or leave both empty for anonymous access';
+                resultDiv.style.display = 'block';
+                return;
+            } else {
+                resultDiv.className = 'test-result';
+                resultDiv.innerHTML = '⏳ Testing API credentials...';
+                resultDiv.style.display = 'block';
+            }
+            
+            try {
+                const params = new URLSearchParams();
+                if (clientId) params.append('client_id', clientId);
+                if (clientSecret) params.append('client_secret', clientSecret);
+                
+                const response = await fetch(`/api/test/opensky?${params.toString()}`);
+                const data = await response.json();
+                
+                if (data.success) {
+                    resultDiv.className = 'test-result success';
+                    resultDiv.innerHTML = `✅ <strong>API working!</strong><br>${data.message}<br>Credits: ${data.credits || 'N/A'}`;
+                } else {
+                    resultDiv.className = 'test-result error';
+                    resultDiv.innerHTML = `❌ ${data.message}`;
+                }
+            } catch (error) {
+                resultDiv.className = 'test-result error';
+                resultDiv.textContent = `❌ Connection error: ${error.message}`;
+            }
         }
         
         // Test transport API

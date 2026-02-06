@@ -471,13 +471,19 @@ def get_flights_airplaneslive(config, flight_config):
             icao24 = aircraft.get('hex', '').lower()
             if (not from_airport and not to_airport) or not is_valid:
                 if icao24 and opensky_config.get('enabled', True):
+                    logger.info(f"Fetching route for {callsign} (ICAO24: {icao24}) from OpenSky...")
                     # Fetch from OpenSky in background (don't block)
                     opensky_from, opensky_to = fetch_route_from_opensky(icao24, config)
                     if opensky_from or opensky_to:
                         from_airport = opensky_from or from_airport
                         to_airport = opensky_to or to_airport
+                        logger.info(f"Found route for {callsign}: {from_airport} → {to_airport}")
                         # Update cache
                         update_route_cache(callsign, from_airport, to_airport, route_cache)
+                    else:
+                        logger.info(f"No route found for {callsign} ({icao24}) in OpenSky database")
+                else:
+                    logger.debug(f"OpenSky lookup disabled or no ICAO24 for {callsign}")
             
             nearby_flights.append({
                 'callsign': callsign,
@@ -880,6 +886,91 @@ def test_transport_api():
     except Exception as e:
         logger.error(f"Error testing transport API: {e}")
         return jsonify({'success': False, 'message': str(e)}), 500
+
+
+@app.route('/api/test/opensky')
+def test_opensky_api():
+    """Test OpenSky API with provided credentials or anonymous"""
+    try:
+        client_id = request.args.get('client_id', '').strip()
+        client_secret = request.args.get('client_secret', '').strip()
+        
+        # Test with a known aircraft (Lufthansa A380 example)
+        test_icao24 = 'd-aimn'  # Lufthansa A380
+        end_time = int(time.time())
+        begin_time = end_time - (7 * 24 * 3600)  # 7 days ago
+        
+        url = f"https://opensky-network.org/api/flights/aircraft?icao24={test_icao24}&begin={begin_time}&end={end_time}"
+        
+        headers = {}
+        auth_type = "anonymous"
+        
+        if client_id and client_secret:
+            # Try OAuth2 authentication
+            token = get_opensky_token(client_id, client_secret)
+            if not token:
+                return jsonify({
+                    'success': False, 
+                    'message': 'Failed to obtain OAuth2 token. Check your Client ID and Client Secret.'
+                }), 401
+            
+            headers['Authorization'] = f'Bearer {token}'
+            auth_type = "authenticated"
+        
+        response = requests.get(url, headers=headers, timeout=10)
+        
+        if response.status_code == 200:
+            flights = response.json()
+            flight_count = len(flights) if flights else 0
+            
+            # Get rate limit info from headers
+            credits_remaining = response.headers.get('X-Rate-Limit-Remaining', 'Unknown')
+            
+            if flight_count > 0:
+                sample_flight = flights[0]
+                departure = sample_flight.get('estDepartureAirport', 'N/A')
+                arrival = sample_flight.get('estArrivalAirport', 'N/A')
+                
+                return jsonify({
+                    'success': True,
+                    'message': f'Connected successfully! Found {flight_count} recent flight(s) for test aircraft.',
+                    'credits': f'{credits_remaining} remaining',
+                    'auth_type': auth_type,
+                    'sample_route': f'{departure} → {arrival}'
+                })
+            else:
+                return jsonify({
+                    'success': True,
+                    'message': f'API connected ({auth_type}) but no recent flights found for test aircraft. Your credentials are valid!',
+                    'credits': f'{credits_remaining} remaining',
+                    'auth_type': auth_type
+                })
+        
+        elif response.status_code == 401:
+            return jsonify({
+                'success': False,
+                'message': 'Authentication failed. Check your Client ID and Client Secret, or try anonymous access (leave empty).'
+            }), 401
+        
+        elif response.status_code == 429:
+            return jsonify({
+                'success': False,
+                'message': 'Rate limit exceeded. Anonymous users: 400 credits/day. With credentials: 4,000-8,000/day.'
+            }), 429
+        
+        else:
+            return jsonify({
+                'success': False,
+                'message': f'API returned status {response.status_code}. Check OpenSky Network status.'
+            }), response.status_code
+            
+    except requests.exceptions.Timeout:
+        return jsonify({'success': False, 'message': 'Request timeout. Check your internet connection.'}), 500
+    except requests.exceptions.ConnectionError:
+        return jsonify({'success': False, 'message': 'Connection error. Check your internet connection.'}), 500
+    except Exception as e:
+        logger.error(f"Error testing OpenSky API: {e}")
+        return jsonify({'success': False, 'message': f'Error: {str(e)}'}), 500
 
 
 @app.route('/api/flight-routes/add', methods=['POST'])
