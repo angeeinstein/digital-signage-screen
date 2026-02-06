@@ -22,7 +22,7 @@
         .container {
             display: grid;
             grid-template-columns: 2fr 1fr;
-            grid-template-rows: auto 1fr 1fr;
+            grid-template-rows: auto 1fr auto;
             gap: 15px;
             padding: 15px;
             height: 100vh;
@@ -81,6 +81,7 @@
         /* Flight Radar */
         .flight-radar {
             grid-row: span 2;
+            position: relative;
         }
         
         .flight-radar iframe {
@@ -88,6 +89,19 @@
             height: calc(100% - 50px);
             border: none;
             border-radius: 10px;
+        }
+        
+        /* Hide iframe UI elements with overlay masks */
+        .flight-radar::after {
+            content: '';
+            position: absolute;
+            top: 50px;
+            right: 0;
+            width: 80px;
+            height: 400px;
+            background: rgba(30, 60, 114, 0.95);
+            pointer-events: none;
+            border-radius: 0 0 0 10px;
         }
         
         /* Weather */
@@ -115,30 +129,31 @@
         .weather-details {
             display: grid;
             grid-template-columns: 1fr 1fr;
-            gap: 10px;
-            font-size: 16px;
+            gap: 12px;
+            font-size: 18px;
         }
         
         .weather-detail {
             display: flex;
             align-items: center;
-            gap: 8px;
+            gap: 10px;
         }
         
         /* Transport */
         .transport {
             overflow-y: auto;
+            max-height: 400px;
         }
         
         .transport-list {
             display: flex;
             flex-direction: column;
-            gap: 10px;
+            gap: 12px;
         }
         
         .transport-item {
             background: rgba(255, 255, 255, 0.1);
-            padding: 12px;
+            padding: 15px;
             border-radius: 8px;
             display: flex;
             justify-content: space-between;
@@ -223,38 +238,9 @@
         ::-webkit-scrollbar-thumb:hover {
             background: rgba(255, 255, 255, 0.5);
         }
-        
-        .nav-menu {
-            position: absolute;
-            top: 10px;
-            left: 10px;
-            z-index: 1000;
-        }
-        
-        .nav-btn {
-            background: rgba(255, 255, 255, 0.2);
-            color: #fff;
-            border: none;
-            padding: 8px 15px;
-            border-radius: 5px;
-            cursor: pointer;
-            font-size: 14px;
-            margin-right: 5px;
-            text-decoration: none;
-            display: inline-block;
-            backdrop-filter: blur(5px);
-        }
-        
-        .nav-btn:hover {
-            background: rgba(255, 255, 255, 0.3);
-        }
     </style>
 </head>
 <body>
-    <div class="nav-menu">
-        <a href="/admin" class="nav-btn">⚙️ Settings</a>
-    </div>
-    
     <div class="container">
         <!-- Header with Time and Date -->
         <div class="widget header">
@@ -284,42 +270,42 @@
                 <div class="weather-icon" id="weather-icon">🌤️</div>
                 <div>
                     <div class="weather-temp" id="weather-temp">--°C</div>
-                    <div id="weather-condition">Loading...</div>
+                    <div id="weather-condition" style="font-size: 18px;">Loading...</div>
                 </div>
             </div>
             <div class="weather-details">
                 <div class="weather-detail">
-                    <span>💨</span>
+                    <span style="font-size: 20px;">💨</span>
                     <span id="weather-wind">-- km/h</span>
                 </div>
                 <div class="weather-detail">
-                    <span>💧</span>
+                    <span style="font-size: 20px;">💧</span>
                     <span id="weather-humidity">--%</span>
                 </div>
                 <div class="weather-detail">
-                    <span>🌡️</span>
+                    <span style="font-size: 20px;">🌡️</span>
                     <span id="weather-pressure">-- hPa</span>
                 </div>
                 <div class="weather-detail">
-                    <span>👁️</span>
+                    <span style="font-size: 20px;">👁️</span>
                     <span id="weather-visibility">-- km</span>
                 </div>
             </div>
-        </div>
-        
-        <!-- Public Transport -->
-        <div class="widget transport">
-            <div class="widget-header">
-                <span class="icon">🚌</span>
-                <span>Next Departures</span>
-            </div>
-            <div class="transport-list" id="transport-list">
-                <div class="transport-item">
-                    <div>
-                        <div class="transport-line">Loading...</div>
-                        <div style="font-size: 14px; margin-top: 5px;">Please wait</div>
+            
+            <!-- Transport integrated into weather widget -->
+            <div style="margin-top: 25px; padding-top: 20px; border-top: 2px solid rgba(255,255,255,0.2);">
+                <div class="widget-header" style="margin-bottom: 15px;">
+                    <span class="icon">🚌</span>
+                    <span>Next Departures</span>
+                </div>
+                <div class="transport-list" id="transport-list">
+                    <div class="transport-item">
+                        <div>
+                            <div class="transport-line">Loading...</div>
+                            <div style="font-size: 14px; margin-top: 5px;">Please wait</div>
+                        </div>
+                        <div class="transport-time">--</div>
                     </div>
-                    <div class="transport-time">--</div>
                 </div>
             </div>
         </div>
@@ -395,10 +381,10 @@
         // Load flight radar
         function loadFlightRadar() {
             const iframe = document.getElementById('flight-radar');
-            // Default to ADS-B Exchange with embedded view
+            // Default to ADS-B Exchange with embedded view, hide UI elements
             const lat = config.location?.lat || 50.0;
             const lon = config.location?.lon || 8.0;
-            iframe.src = `https://globe.adsbexchange.com/?icao=~&lat=${lat}&lon=${lon}&zoom=8.0&enableLabels&extendedLabels=2&trackLabels&noIsolation`;
+            iframe.src = `https://globe.adsbexchange.com/?icao=~&lat=${lat}&lon=${lon}&zoom=8.5&enableLabels&extendedLabels=2&trackLabels&noIsolation&hideButtons&SiteLat=${lat}&SiteLon=${lon}`;
         }
         
         // Load weather
