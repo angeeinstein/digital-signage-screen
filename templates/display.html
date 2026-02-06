@@ -114,6 +114,12 @@
             margin-bottom: 6px;
         }
         
+        .flight-header > div {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        
         .flight-item {
             display: grid;
             grid-template-columns: 40px 130px 180px 140px 100px 140px 130px 100px;
@@ -123,6 +129,12 @@
             background: rgba(255, 255, 255, 0.1);
             margin-bottom: 6px;
             font-size: 16px;
+        }
+        
+        .flight-item > div {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
         }
         
         .flight-item:last-child {
@@ -493,6 +505,12 @@
                                 routeDisplay = ` → ${flight.to}`;
                             }
                             
+                            // Format altitude - don't show "ft" for ground
+                            let altitudeDisplay = flight.altitude;
+                            if (String(flight.altitude).toLowerCase() !== 'ground') {
+                                altitudeDisplay = `${flight.altitude} ft`;
+                            }
+                            
                             return `
                             <div class="flight-item">
                                 <div class="flight-icon">
@@ -502,7 +520,7 @@
                                 <div class="flight-airline-col">${flight.airline_name || flight.airline || ''}</div>
                                 <div class="flight-route-col">${routeDisplay}</div>
                                 <div class="flight-aircraft-col">${flight.aircraft_type || ''}</div>
-                                <div class="flight-altitude-col">${flight.altitude} ft</div>
+                                <div class="flight-altitude-col">${altitudeDisplay}</div>
                                 <div class="flight-speed-col">${flight.speed} kts</div>
                                 <div class="flight-distance-col">${flight.distance} km</div>
                             </div>
