@@ -186,6 +186,9 @@ clone_or_pull_from_github() {
     
     local mode="$1"
     
+    # Configure git safe.directory
+    git config --global --add safe.directory "$INSTALL_DIR" 2>/dev/null || true
+    
     if [[ "$mode" == "fresh" ]]; then
         print_info "Cloning from GitHub: ${GITHUB_URL}"
         
@@ -495,6 +498,31 @@ backup_installation() {
     ls -dt /opt/digital-signage-backup-* 2>/dev/null | tail -n +6 | xargs rm -rf 2>/dev/null || true
     
     print_success "Backup created: $backup_dir"
+    
+    # Store backup dir for restore
+    LAST_BACKUP_DIR="$backup_dir"
+}
+
+restore_from_backup() {
+    if [[ -z "$LAST_BACKUP_DIR" ]] || [[ ! -d "$LAST_BACKUP_DIR" ]]; then
+        print_info "No backup to restore"
+        return
+    fi
+    
+    print_info "Restoring content and configuration from backup..."
+    
+    # Restore content
+    if [[ -d "$LAST_BACKUP_DIR/content" ]]; then
+        mkdir -p "$INSTALL_DIR/content"
+        cp -r "$LAST_BACKUP_DIR/content/"* "$INSTALL_DIR/content/" 2>/dev/null || true
+    fi
+    
+    # Restore config
+    if [[ -f "$LAST_BACKUP_DIR/config.json" ]]; then
+        cp "$LAST_BACKUP_DIR/config.json" "$INSTALL_DIR/" || true
+    fi
+    
+    print_success "Content and configuration restored"
 }
 
 update_installation() {
