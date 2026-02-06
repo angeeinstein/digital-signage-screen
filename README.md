@@ -142,6 +142,13 @@ sudo journalctl -u digital-signage -f
 
 ## Troubleshooting
 
+### Quick Diagnostic
+
+Run this to see what's wrong:
+```bash
+curl -sSL https://raw.githubusercontent.com/angeeinstein/digital-signage-screen/main/diagnose.sh | sudo bash
+```
+
 ### Service won't start
 
 **Check service status and logs:**
@@ -150,9 +157,44 @@ sudo systemctl status digital-signage
 sudo journalctl -u digital-signage -n 100 --no-pager
 ```
 
+**Check what's using port 80:**
+```bash
+sudo lsof -i :80
+# or
+sudo netstat -tulpn | grep :80
+```
+
 **Common issues and fixes:**
 
-1. **Port 80 permission denied**
+1. **Port 80 permission denied / "Retrying in 1 second" error**
+   
+   This means something is blocking port 80. Fix it:
+   
+   ```bash
+   # Stop nginx if it's running
+   sudo systemctl stop nginx
+   sudo systemctl disable nginx
+   
+   # Give Python permission to use port 80
+   sudo setcap 'cap_net_bind_service=+ep' /opt/digital-signage/venv/bin/python3
+   
+   # Restart the service
+   sudo systemctl restart digital-signage
+   
+   # Check if it's working
+   sudo systemctl status digital-signage
+   curl http://localhost/api/health
+   ```
+   
+   **Alternative - Use port 8080 instead:**
+   ```bash
+   sudo nano /opt/digital-signage/gunicorn_config.py
+   # Change line: bind = "0.0.0.0:8080"
+   sudo systemctl restart digital-signage
+   # Access at: http://YOUR_IP:8080
+   ```
+
+2. **Port 80 already in use**
    ```bash
    # Option 1: Set capabilities (done automatically by installer)
    sudo setcap 'cap_net_bind_service=+ep' /opt/digital-signage/venv/bin/python3
