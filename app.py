@@ -275,13 +275,15 @@ def search_trias_stops(query, limit=20):
         logger.info(f"TRIAS search for '{query}' - Response status: {response.status_code}")
         
         # Save response to file for debugging
-        debug_file = f"/tmp/trias_response_{query.replace(' ', '_')}.xml"
+        import hashlib
+        query_hash = hashlib.md5(query.encode()).hexdigest()[:8]
+        debug_file = f"/tmp/trias_response_{query_hash}.xml"
         try:
             with open(debug_file, 'w', encoding='utf-8') as f:
                 f.write(response.text)
-            logger.info(f"Response saved to {debug_file}")
-        except:
-            pass
+            logger.info(f"Response saved to {debug_file} (query: '{query}')")
+        except Exception as e:
+            logger.error(f"Failed to save response: {e}")
         
         # Parse XML response
         root = ET.fromstring(response.content)
