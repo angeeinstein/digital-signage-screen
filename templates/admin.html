@@ -723,15 +723,17 @@
                 const data = await response.json();
                 
                 if (data.success && data.stops.length > 0) {
-                    stopsList.innerHTML = data.stops.map(stop => `
+                    stopsList.innerHTML = data.stops.map(stop => {
+                        const stopDataJson = JSON.stringify(stop).replace(/"/g, '&quot;');
+                        return `
                         <div style="padding: 8px; margin: 2px; background: rgba(255,255,255,0.1); border-radius: 4px; cursor: pointer; transition: background 0.2s;" 
                              onmouseover="this.style.background='rgba(255,255,255,0.2)'"
                              onmouseout="this.style.background='rgba(255,255,255,0.1)'"
-                             onclick="selectStop('${stop.stop_id.replace(/'/g, "\\'")}', '${stop.stop_name.replace(/'/g, "\\'")}')">
+                             onclick='selectStop(${stopDataJson})'>
                             <strong>${stop.stop_name}</strong><br>
-                            <small style="opacity: 0.7;">${stop.stop_id}</small>
+                            <small style="opacity: 0.7;">Primary ID: ${stop.stop_id}</small>
                         </div>
-                    `).join('');
+                    `}).join('');
                 } else {
                     stopsList.innerHTML = '<div style="padding: 10px; opacity: 0.7;">No stops found. Try a different search term.</div>';
                 }
@@ -740,12 +742,15 @@
             }
         }
         
-        function selectStop(stopId, stopName) {
-            document.getElementById('transportStopId').value = stopId;
-            document.getElementById('transportStopName').value = stopName;
+        function selectStop(stopData) {
+            // Clean up the stop name (remove platform count if present)
+            const cleanName = stopData.stop_name.replace(/\s*\(\d+\s+platforms\)/, '');
+            
+            document.getElementById('transportStopId').value = stopData.stop_id;
+            document.getElementById('transportStopName').value = cleanName;
             document.getElementById('stopSearchResults').style.display = 'none';
             document.getElementById('transportStopSearch').value = '';
-            showSuccess(`Selected stop: ${stopName}`);
+            showSuccess(`Selected stop: ${cleanName}`);
         }
         
         async function testTransportAPI() {
