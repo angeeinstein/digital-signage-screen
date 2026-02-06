@@ -9,6 +9,7 @@ from datetime import datetime
 import os
 import json
 import logging
+import requests
 from pathlib import Path
 
 # Configure logging
@@ -24,124 +25,217 @@ app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'digital-signage-secret-
 # Configuration
 BASE_DIR = Path(__file__).resolve().parent
 CONTENT_DIR = BASE_DIR / 'content'
-CONFIG_FILE = BASE_DIR / 'config.json'
+DASHBOARD_CONFIG_FILE = BASE_DIR / 'dashboard_config.json'
 
 # Ensure directories exist
 CONTENT_DIR.mkdir(exist_ok=True)
 
-# Default configuration
-DEFAULT_CONFIG = {
-    'refresh_interval': 30,  # seconds
-    'rotation_enabled': True,
-    'content_items': [],
-    'display_name': 'Digital Signage Display'
+# Default dashboard configuration
+DEFAULT_DASHBOARD_CONFIG = {
+    'location': {
+        'lat': 50.0,
+        'lon': 8.0,
+        'name': 'Default Location'
+    },
+    'weather': {
+        'api_key': '',  # OpenWeatherMap API key
+        'enabled': True
+    },
+    'transport': {
+        'enabled': False,
+        'api_url': '',
+        'stop_id': ''
+    },
+    'timetable': {
+        'enabled': True,
+        'lectures': [
+            {
+                'year': 'Year 1',
+                'time': '09:00',
+                'name': 'Flight Principles',
+                'room': 'A101'
+            },
+            {
+                'year': 'Year 2',
+                'time': '10:30',
+                'name': 'Navigation',
+                'room': 'A203'
+            }
+        ]
+    }
 }
 
 
-def load_config():
-    """Load configuration from file or create default"""
-    if CONFIG_FILE.exists():
+def load_dashboard_config():
+    """Load dashboard configuration from file or create default"""
+    if DASHBOARD_CONFIG_FILE.exists():
         try:
-            with open(CONFIG_FILE, 'r') as f:
+            with open(DASHBOARD_CONFIG_FILE, 'r') as f:
                 return json.load(f)
         except Exception as e:
-            logger.error(f"Error loading config: {e}")
-    return DEFAULT_CONFIG.copy()
+            logger.error(f"Error loading dashboard config: {e}")
+    return DEFAULT_DASHBOARD_CONFIG.copy()
 
 
-def save_config(config):
-    """Save configuration to file"""
+def save_dashboard_config(config):
+    """Save dashboard configuration to file"""
     try:
-        with open(CONFIG_FILE, 'w') as f:
+        with open(DASHBOARD_CONFIG_FILE, 'w') as f:
             json.dump(config, f, indent=2)
         return True
     except Exception as e:
-        logger.error(f"Error saving config: {e}")
+        logger.error(f"Error saving dashboard config: {e}")
         return False
 
 
 @app.route('/')
 def index():
-    """Main display page"""
-    config = load_config()
-    return render_template('display.html', config=config)
+    """Main aviation dashboard display"""
+    return render_template('display.html')
 
 
 @app.route('/admin')
 def admin():
-    """Admin panel for managing content"""
-    config = load_config()
-    return render_template('admin.html', config=config)
+    """Dashboard configuration admin"""
+    return render_template('admin.html')
 
 
-@app.route('/api/config', methods=['GET'])
-def get_config():
-    """Get current configuration"""
-    config = load_config()
-    return jsonify(config)
+@app.route('/api/dashboard/config', methods=['GET'])
+def get_dashboard_config():
+    """Get dashboard configuration"""
+    config = load_dashboard_config()
+    return jsonify({'success': True, 'config': config})
 
 
-@app.route('/api/config', methods=['POST'])
-def update_config():
-    """Update configuration"""
+@app.route('/api/dashboard/config', methods=['POST'])
+def update_dashboard_config():
+    """Update dashboard configuration"""
     try:
         new_config = request.json
-        if save_config(new_config):
-            return jsonify({'success': True, 'message': 'Configuration updated'})
+        if save_dashboard_config(new_config):
+            return jsonify({'success': True, 'message': 'Dashboard configuration updated'})
         else:
             return jsonify({'success': False, 'message': 'Failed to save configuration'}), 500
     except Exception as e:
-        logger.error(f"Error updating config: {e}")
+        logger.error(f"Error updating dashboard config: {e}")
         return jsonify({'success': False, 'message': str(e)}), 400
 
 
-@app.route('/api/content', methods=['GET'])
-def list_content():
-    """List all content files"""
+@app.route('/api/dashboard/weather')
+def get_weather():
+    """Get weather data from OpenWeatherMap"""
     try:
-        files = []
-        for item in CONTENT_DIR.iterdir():
-            if item.is_file() and item.suffix.lower() in ['.jpg', '.jpeg', '.png', '.gif', '.mp4', '.webm']:
-                files.append({
-                    'name': item.name,
-                    'size': item.stat().st_size,
-                    'modified': item.stat().st_mtime
-                })
-        return jsonify({'success': True, 'files': files})
-    except Exception as e:
-        logger.error(f"Error listing content: {e}")
-        return jsonify({'success': False, 'message': str(e)}), 500
-
-
-@app.route('/api/content/<filename>', methods=['DELETE'])
-def delete_content(filename):
-    """Delete a content file"""
-    try:
-        file_path = CONTENT_DIR / filename
-        if file_path.exists() and file_path.parent == CONTENT_DIR:
-            file_path.unlink()
-            return jsonify({'success': True, 'message': f'Deleted {filename}'})
+        config = load_dashboard_config()
+        api_key = config.get('weather', {}).get('api_key', '')
+        
+        if not api_key:
+            return jsonify({
+                'success': True,
+                'weather': {
+                    'temp': 20,
+                    'description': 'No API key configured',
+                    'wind': 0,
+                    'humidity': 0,
+                    'pressure': 1013,
+                    'visibility': 10,
+                    'icon': '01d'
+                }
+            })
+        
+        lat = config.get('location', {}).get('lat', 50.0)
+        lon = config.get('location', {}).get('lon', 8.0)
+        
+        url = f"https://api.openweathermap.org/data/2.5/weather?lat={lat}&lon={lon}&appid={api_key}&units=metric"
+        response = requests.get(url, timeout=5)
+        data = response.json()
+        
+        if response.status_code == 200:
+            weather = {
+                'temp': data['main']['temp'],
+                'description': data['weather'][0]['description'].capitalize(),
+                'wind': round(data['wind']['speed'] * 3.6, 1),  # Convert m/s to km/h
+                'humidity': data['main']['humidity'],
+                'pressure': data['main']['pressure'],
+                'visibility': round(data.get('visibility', 10000) / 1000, 1),  # Convert m to km
+                'icon': data['weather'][0]['icon']
+            }
+            return jsonify({'success': True, 'weather': weather})
         else:
-            return jsonify({'success': False, 'message': 'File not found'}), 404
+            return jsonify({'success': False, 'message': 'Weather API error'}), 500
+            
     except Exception as e:
-        logger.error(f"Error deleting content: {e}")
+        logger.error(f"Error fetching weather: {e}")
         return jsonify({'success': False, 'message': str(e)}), 500
 
 
-@app.route('/content/<path:filename>')
-def serve_content(filename):
-    """Serve content files"""
-    return send_from_directory(CONTENT_DIR, filename)
+@app.route('/api/dashboard/transport')
+def get_transport():
+    """Get public transport departures"""
+    try:
+        config = load_dashboard_config()
+        transport_config = config.get('transport', {})
+        
+        if not transport_config.get('enabled', False):
+            return jsonify({'success': True, 'departures': []})
+        
+        # This will be customized based on the specific API you provide
+        # For now, returning mock data
+        departures = [
+            {'line': '3', 'destination': 'Airport', 'time': '5 min', 'color': '#E53935'},
+            {'line': '12', 'destination': 'Main Station', 'time': '8 min', 'color': '#1E88E5'},
+            {'line': '45', 'destination': 'University', 'time': '12 min', 'color': '#43A047'},
+        ]
+        
+        return jsonify({'success': True, 'departures': departures})
+        
+    except Exception as e:
+        logger.error(f"Error fetching transport: {e}")
+        return jsonify({'success': False, 'message': str(e)}), 500
 
 
-@app.route('/api/health')
-def health_check():
-    """Health check endpoint"""
-    return jsonify({
-        'status': 'healthy',
-        'timestamp': datetime.now().isoformat(),
-        'version': '1.0.0'
-    })
+@app.route('/api/dashboard/timetable')
+def get_timetable():
+    """Get lecture timetable"""
+    try:
+        config = load_dashboard_config()
+        timetable_config = config.get('timetable', {})
+        
+        if not timetable_config.get('enabled', True):
+            return jsonify({'success': True, 'lectures': []})
+        
+        # Get current day of week
+        now = datetime.now()
+        weekday = now.strftime('%A')
+        
+        # Filter lectures for today and get next ones
+        lectures = timetable_config.get('lectures', [])
+        current_time = now.hour * 60 + now.minute
+        
+        # Filter lectures that are today or coming soon
+        upcoming_lectures = []
+        for lecture in lectures:
+            # Check if lecture has a day field, if not assume it's for all days
+            if 'day' in lecture and lecture['day'] != weekday:
+                continue
+                
+            time_parts = lecture['time'].split(':')
+            lecture_time = int(time_parts[0]) * 60 + int(time_parts[1])
+            
+            # Show lectures that are within the next 2 hours or currently happening
+            if lecture_time >= current_time - 30 and lecture_time <= current_time + 120:
+                upcoming_lectures.append(lecture)
+        
+        # Sort by time
+        upcoming_lectures.sort(key=lambda x: x['time'])
+        
+        # Limit to next 8 lectures
+        upcoming_lectures = upcoming_lectures[:8]
+        
+        return jsonify({'success': True, 'lectures': upcoming_lectures})
+        
+    except Exception as e:
+        logger.error(f"Error fetching timetable: {e}")
+        return jsonify({'success': False, 'message': str(e)}), 500
 
 
 @app.errorhandler(404)

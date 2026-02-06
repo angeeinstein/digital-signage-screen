@@ -1,0 +1,77 @@
+{
+  "location": {
+    "lat": 50.1109,
+    "lon": 8.6821,
+    "name": "Frankfurt"
+  },
+  "weather": {
+    "api_key": "",
+    "enabled": true
+  },
+  "transport": {
+    "enabled": false,
+    "api_url": "",
+    "stop_id": ""
+  },
+  "timetable": {
+    "enabled": true,
+    "lectures": [
+      {
+        "year": "Year 1",
+        "day": "Monday",
+        "time": "09:00",
+        "name": "Flight Principles",
+        "room": "A101"
+      },
+      {
+        "year": "Year 1",
+        "day": "Monday",
+        "time": "11:00",
+        "name": "Aviation Meteorology",
+        "room": "A102"
+      },
+      {
+        "year": "Year 2",
+        "day": "Monday",
+        "time": "10:00",
+        "name": "Navigation",
+        "room": "A203"
+      },
+      {
+        "year": "Year 2",
+        "day": "Monday",
+        "time": "14:00",
+        "name": "Air Traffic Control",
+        "room": "B101"
+      },
+      {
+        "year": "Year 3",
+        "day": "Monday",
+        "time": "09:30",
+        "name": "Aircraft Systems",
+        "room": "C201"
+      },
+      {
+        "year": "Year 3",
+        "day": "Monday",
+        "time": "13:00",
+        "name": "Flight Operations",
+        "room": "C202"
+      },
+      {
+        "year": "Year 4",
+        "day": "Monday",
+        "time": "10:30",
+        "name": "Aviation Law",
+        "room": "D101"
+      },
+      {
+        "year": "Year 4",
+        "day": "Monday",
+        "time": "15:00",
+        "name": "Crew Resource Management",
+        "room": "D102"
+      }
+    ]
+  }
+}

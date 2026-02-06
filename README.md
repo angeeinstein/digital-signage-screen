@@ -1,21 +1,23 @@
-# Digital Signage Display Solution
+# Digital Signage - Aviation Student Dashboard
 
 [![GitHub](https://img.shields.io/badge/GitHub-angeeinstein-blue?logo=github)](https://github.com/angeeinstein/digital-signage-screen)
 [![Python](https://img.shields.io/badge/Python-3.7%2B-blue?logo=python)](https://www.python.org/)
 [![Raspberry Pi](https://img.shields.io/badge/Raspberry%20Pi-5-red?logo=raspberry-pi)](https://www.raspberrypi.com/)
 
-A comprehensive digital signage solution built with Flask and Gunicorn, designed for Raspberry Pi 5. Features a fully automated installation and update system with GitHub integration.
+A full-screen information dashboard for aviation students, showing live flight tracking, weather, transport, and lecture schedules. Built with Flask and Gunicorn, designed for Raspberry Pi 5.
 
 ## Features
 
-- 🖥️ **Full-screen Display**: Clean, distraction-free content display
-- 🔄 **Auto-rotation**: Automatic content cycling with configurable intervals
-- 🎨 **Multi-format Support**: Images (JPG, PNG, GIF) and videos (MP4, WebM)
-- ⚙️ **Web Admin Panel**: Easy content and configuration management
-- 🚀 **Systemd Service**: Automatic startup and management
-- 🔧 **Automated Installation**: Zero manual configuration required
-- 📦 **Update Management**: Intelligent update system with backups
-- 🔒 **Production Ready**: Runs on Gunicorn with proper permissions
+- ⏰ **Time & Date** - Large, always-visible clock
+- ✈️ **Live Flight Tracking** - Real-time aircraft via ADS-B Exchange
+- 🌤️ **Weather Information** - Aviation-relevant data (wind, visibility, pressure)
+- 🚌 **Public Transport** - Next bus/tram departures
+- 📅 **Lecture Timetable** - Smart scheduling for multiple year groups
+- 🔄 **Auto-refresh** - All data updates automatically
+- 🎨 **Modern UI** - Glass-morphism design with gradients
+- ⚙️ **Web Configuration** - Easy setup via browser
+- 🚀 **Systemd Service** - Automatic startup and management
+- 🔧 **Automated Installation** - Zero manual configuration required
 
 ## System Requirements
 

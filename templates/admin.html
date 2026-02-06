@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Admin Panel - {{ config.display_name }}</title>
+    <title>Dashboard Admin</title>
     <style>
         * {
             margin: 0;
@@ -12,45 +12,47 @@
         }
         
         body {
-            font-family: Arial, sans-serif;
-            background: #f5f5f5;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             padding: 20px;
+            min-height: 100vh;
         }
         
         .container {
             max-width: 1200px;
             margin: 0 auto;
-            background: white;
-            padding: 30px;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }
         
         h1 {
-            color: #333;
+            color: white;
             margin-bottom: 30px;
+            text-align: center;
         }
         
-        .section {
-            margin-bottom: 40px;
+        .card {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 20px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
         }
         
-        .section h2 {
-            color: #555;
-            margin-bottom: 15px;
-            border-bottom: 2px solid #4CAF50;
+        .card h2 {
+            color: #333;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #667eea;
             padding-bottom: 10px;
         }
         
         .form-group {
-            margin-bottom: 15px;
+            margin-bottom: 20px;
         }
         
         label {
             display: block;
             margin-bottom: 5px;
             color: #555;
-            font-weight: bold;
+            font-weight: 600;
         }
         
         input[type="text"],
@@ -58,71 +60,89 @@
         select {
             width: 100%;
             padding: 10px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
             font-size: 14px;
+            transition: border-color 0.3s;
+        }
+        
+        input[type="text"]:focus,
+        input[type="number"]:focus,
+        select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
         }
         
         input[type="checkbox"] {
-            width: auto;
-            margin-right: 10px;
-        }
-        
-        button {
-            background: #4CAF50;
-            color: white;
-            padding: 10px 20px;
-            border: none;
-            border-radius: 4px;
+            width: 20px;
+            height: 20px;
             cursor: pointer;
-            font-size: 14px;
-            margin-right: 10px;
         }
         
-        button:hover {
-            background: #45a049;
-        }
-        
-        button.danger {
-            background: #f44336;
-        }
-        
-        button.danger:hover {
-            background: #da190b;
-        }
-        
-        .content-list {
-            list-style: none;
-        }
-        
-        .content-item {
-            padding: 15px;
-            background: #f9f9f9;
-            margin-bottom: 10px;
-            border-radius: 4px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        
-        .content-info {
-            flex: 1;
-        }
-        
-        .content-name {
+        .btn {
+            padding: 12px 30px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
             font-weight: bold;
-            color: #333;
+            cursor: pointer;
+            transition: all 0.3s;
         }
         
-        .content-size {
-            color: #777;
-            font-size: 12px;
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+        }
+        
+        .btn-success {
+            background: #28a745;
+            color: white;
+        }
+        
+        .btn-danger {
+            background: #dc3545;
+            color: white;
+        }
+        
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+        }
+        
+        .lecture-item {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            border-left: 4px solid #667eea;
+        }
+        
+        .lecture-item input {
+            margin-bottom: 10px;
+        }
+        
+        .btn-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
         }
         
         .alert {
             padding: 15px;
+            border-radius: 8px;
             margin-bottom: 20px;
-            border-radius: 4px;
+            display: none;
         }
         
         .alert-success {
@@ -137,163 +157,278 @@
             border: 1px solid #f5c6cb;
         }
         
-        .links {
+        .help-text {
+            font-size: 12px;
+            color: #666;
+            margin-top: 5px;
+        }
+        
+        .nav-links {
+            text-align: center;
             margin-top: 20px;
-            padding-top: 20px;
-            border-top: 1px solid #ddd;
         }
         
-        .links a {
-            color: #4CAF50;
+        .nav-links a {
+            color: white;
             text-decoration: none;
-            margin-right: 20px;
+            margin: 0 15px;
+            font-size: 18px;
+            padding: 10px 20px;
+            background: rgba(255,255,255,0.2);
+            border-radius: 8px;
+            display: inline-block;
+            transition: background 0.3s;
         }
         
-        .links a:hover {
-            text-decoration: underline;
+        .nav-links a:hover {
+            background: rgba(255,255,255,0.3);
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>Digital Signage - Admin Panel</h1>
+        <h1>✈️ Dashboard Configuration</h1>
         
-        <div id="alert-container"></div>
+        <div class="alert alert-success" id="successAlert"></div>
+        <div class="alert alert-error" id="errorAlert"></div>
         
-        <div class="section">
-            <h2>Configuration</h2>
-            <div class="form-group">
-                <label for="display-name">Display Name:</label>
-                <input type="text" id="display-name" value="{{ config.display_name }}">
+        <!-- Location Settings -->
+        <div class="card">
+            <h2>📍 Location Settings</h2>
+            <div class="grid">
+                <div class="form-group">
+                    <label for="locationName">Location Name</label>
+                    <input type="text" id="locationName" placeholder="e.g., Frankfurt">
+                </div>
+                <div class="form-group">
+                    <label for="latitude">Latitude</label>
+                    <input type="number" id="latitude" step="0.0001" placeholder="e.g., 50.1109">
+                    <div class="help-text">Used for weather and flight tracking</div>
+                </div>
+                <div class="form-group">
+                    <label for="longitude">Longitude</label>
+                    <input type="number" id="longitude" step="0.0001" placeholder="e.g., 8.6821">
+                </div>
             </div>
-            <div class="form-group">
-                <label for="refresh-interval">Refresh Interval (seconds):</label>
-                <input type="number" id="refresh-interval" value="{{ config.refresh_interval }}" min="5">
-            </div>
-            <div class="form-group">
-                <label>
-                    <input type="checkbox" id="rotation-enabled" {% if config.rotation_enabled %}checked{% endif %}>
-                    Enable Content Rotation
-                </label>
-            </div>
-            <button onclick="saveConfig()">Save Configuration</button>
         </div>
         
-        <div class="section">
-            <h2>Content Management</h2>
-            <p style="color: #666; margin-bottom: 15px;">
-                Upload images (JPG, PNG, GIF) or videos (MP4, WebM) to display on the signage screen.
-            </p>
-            <p style="color: #999; font-size: 12px; margin-bottom: 15px;">
-                Note: File upload via web interface is coming soon. For now, copy files to /opt/digital-signage/content/ on the server.
-            </p>
-            <ul class="content-list" id="content-list">
-                <li style="color: #999;">Loading content...</li>
-            </ul>
+        <!-- Weather Settings -->
+        <div class="card">
+            <h2>🌤️ Weather Settings</h2>
+            <div class="form-group checkbox-group">
+                <input type="checkbox" id="weatherEnabled">
+                <label for="weatherEnabled">Enable Weather Display</label>
+            </div>
+            <div class="form-group">
+                <label for="weatherApiKey">OpenWeatherMap API Key</label>
+                <input type="text" id="weatherApiKey" placeholder="Get free API key from openweathermap.org">
+                <div class="help-text">Sign up at <a href="https://openweathermap.org/api" target="_blank">openweathermap.org/api</a> for a free API key</div>
+            </div>
         </div>
         
-        <div class="links">
-            <a href="/" target="_blank">View Display</a>
-            <a href="/api/health" target="_blank">Health Check</a>
+        <!-- Transport Settings -->
+        <div class="card">
+            <h2>🚌 Public Transport Settings</h2>
+            <div class="form-group checkbox-group">
+                <input type="checkbox" id="transportEnabled">
+                <label for="transportEnabled">Enable Transport Display</label>
+            </div>
+            <div class="form-group">
+                <label for="transportApiUrl">API URL</label>
+                <input type="text" id="transportApiUrl" placeholder="Transport API endpoint">
+                <div class="help-text">Provide the API details when ready</div>
+            </div>
+            <div class="form-group">
+                <label for="transportStopId">Stop ID</label>
+                <input type="text" id="transportStopId" placeholder="Station or stop ID">
+            </div>
+        </div>
+        
+        <!-- Timetable Settings -->
+        <div class="card">
+            <h2>📅 Lecture Timetable</h2>
+            <div class="form-group checkbox-group">
+                <input type="checkbox" id="timetableEnabled" checked>
+                <label for="timetableEnabled">Enable Timetable Display</label>
+            </div>
+            
+            <div id="lecturesList"></div>
+            
+            <button class="btn btn-success" onclick="addLecture()">+ Add Lecture</button>
+        </div>
+        
+        <!-- Save Button -->
+        <div class="btn-group">
+            <button class="btn btn-primary" onclick="saveConfig()">💾 Save Configuration</button>
+        </div>
+        
+        <div class="nav-links">
+            <a href="/">← Back to Dashboard</a>
         </div>
     </div>
     
     <script>
-        function showAlert(message, type = 'success') {
-            const container = document.getElementById('alert-container');
-            const alert = document.createElement('div');
-            alert.className = `alert alert-${type}`;
-            alert.textContent = message;
-            container.appendChild(alert);
-            
-            setTimeout(() => alert.remove(), 5000);
-        }
+        let lectures = [];
         
-        async function loadContent() {
+        // Load configuration on page load
+        async function loadConfig() {
             try {
-                const response = await fetch('/api/content');
-                const data = await response.json();
-                
-                const list = document.getElementById('content-list');
-                list.innerHTML = '';
-                
-                if (data.success && data.files.length > 0) {
-                    data.files.forEach(file => {
-                        const li = document.createElement('li');
-                        li.className = 'content-item';
-                        li.innerHTML = `
-                            <div class="content-info">
-                                <div class="content-name">${file.name}</div>
-                                <div class="content-size">${formatFileSize(file.size)}</div>
-                            </div>
-                            <button class="danger" onclick="deleteContent('${file.name}')">Delete</button>
-                        `;
-                        list.appendChild(li);
-                    });
-                } else {
-                    list.innerHTML = '<li style="color: #999;">No content files found</li>';
-                }
-            } catch (error) {
-                showAlert('Failed to load content: ' + error.message, 'error');
-            }
-        }
-        
-        async function deleteContent(filename) {
-            if (!confirm(`Delete ${filename}?`)) return;
-            
-            try {
-                const response = await fetch(`/api/content/${filename}`, {
-                    method: 'DELETE'
-                });
+                const response = await fetch('/api/dashboard/config');
                 const data = await response.json();
                 
                 if (data.success) {
-                    showAlert(`Deleted ${filename}`);
-                    loadContent();
-                } else {
-                    showAlert(data.message, 'error');
+                    const config = data.config;
+                    
+                    // Location
+                    document.getElementById('locationName').value = config.location?.name || '';
+                    document.getElementById('latitude').value = config.location?.lat || '';
+                    document.getElementById('longitude').value = config.location?.lon || '';
+                    
+                    // Weather
+                    document.getElementById('weatherEnabled').checked = config.weather?.enabled || false;
+                    document.getElementById('weatherApiKey').value = config.weather?.api_key || '';
+                    
+                    // Transport
+                    document.getElementById('transportEnabled').checked = config.transport?.enabled || false;
+                    document.getElementById('transportApiUrl').value = config.transport?.api_url || '';
+                    document.getElementById('transportStopId').value = config.transport?.stop_id || '';
+                    
+                    // Timetable
+                    document.getElementById('timetableEnabled').checked = config.timetable?.enabled !== false;
+                    lectures = config.timetable?.lectures || [];
+                    renderLectures();
                 }
             } catch (error) {
-                showAlert('Failed to delete content: ' + error.message, 'error');
+                showError('Failed to load configuration: ' + error.message);
             }
         }
         
+        // Save configuration
         async function saveConfig() {
-            const config = {
-                display_name: document.getElementById('display-name').value,
-                refresh_interval: parseInt(document.getElementById('refresh-interval').value),
-                rotation_enabled: document.getElementById('rotation-enabled').checked,
-                content_items: []
-            };
-            
             try {
-                const response = await fetch('/api/config', {
+                const config = {
+                    location: {
+                        name: document.getElementById('locationName').value,
+                        lat: parseFloat(document.getElementById('latitude').value) || 0,
+                        lon: parseFloat(document.getElementById('longitude').value) || 0
+                    },
+                    weather: {
+                        enabled: document.getElementById('weatherEnabled').checked,
+                        api_key: document.getElementById('weatherApiKey').value
+                    },
+                    transport: {
+                        enabled: document.getElementById('transportEnabled').checked,
+                        api_url: document.getElementById('transportApiUrl').value,
+                        stop_id: document.getElementById('transportStopId').value
+                    },
+                    timetable: {
+                        enabled: document.getElementById('timetableEnabled').checked,
+                        lectures: lectures
+                    }
+                };
+                
+                const response = await fetch('/api/dashboard/config', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
                     },
                     body: JSON.stringify(config)
                 });
+                
                 const data = await response.json();
                 
                 if (data.success) {
-                    showAlert('Configuration saved successfully');
+                    showSuccess('Configuration saved successfully!');
                 } else {
-                    showAlert(data.message, 'error');
+                    showError('Failed to save: ' + data.message);
                 }
             } catch (error) {
-                showAlert('Failed to save configuration: ' + error.message, 'error');
+                showError('Error saving configuration: ' + error.message);
             }
         }
         
-        function formatFileSize(bytes) {
-            if (bytes < 1024) return bytes + ' B';
-            if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(2) + ' KB';
-            return (bytes / (1024 * 1024)).toFixed(2) + ' MB';
+        // Add new lecture
+        function addLecture() {
+            lectures.push({
+                year: 'Year 1',
+                time: '09:00',
+                name: 'New Lecture',
+                room: 'A101',
+                day: 'Monday'
+            });
+            renderLectures();
+        }
+        
+        // Remove lecture
+        function removeLecture(index) {
+            lectures.splice(index, 1);
+            renderLectures();
+        }
+        
+        // Update lecture field
+        function updateLecture(index, field, value) {
+            lectures[index][field] = value;
+        }
+        
+        // Render lectures list
+        function renderLectures() {
+            const container = document.getElementById('lecturesList');
+            
+            if (lectures.length === 0) {
+                container.innerHTML = '<p style="color: #666; text-align: center; padding: 20px;">No lectures added yet. Click "Add Lecture" to create one.</p>';
+                return;
+            }
+            
+            container.innerHTML = lectures.map((lecture, index) => `
+                <div class="lecture-item">
+                    <div class="grid">
+                        <input type="text" placeholder="Year Group" value="${lecture.year}" 
+                               onchange="updateLecture(${index}, 'year', this.value)">
+                        <select onchange="updateLecture(${index}, 'day', this.value)">
+                            <option value="Monday" ${lecture.day === 'Monday' ? 'selected' : ''}>Monday</option>
+                            <option value="Tuesday" ${lecture.day === 'Tuesday' ? 'selected' : ''}>Tuesday</option>
+                            <option value="Wednesday" ${lecture.day === 'Wednesday' ? 'selected' : ''}>Wednesday</option>
+                            <option value="Thursday" ${lecture.day === 'Thursday' ? 'selected' : ''}>Thursday</option>
+                            <option value="Friday" ${lecture.day === 'Friday' ? 'selected' : ''}>Friday</option>
+                            <option value="Saturday" ${lecture.day === 'Saturday' ? 'selected' : ''}>Saturday</option>
+                            <option value="Sunday" ${lecture.day === 'Sunday' ? 'selected' : ''}>Sunday</option>
+                        </select>
+                        <input type="time" value="${lecture.time}" 
+                               onchange="updateLecture(${index}, 'time', this.value)">
+                    </div>
+                    <input type="text" placeholder="Lecture Name" value="${lecture.name}" 
+                           onchange="updateLecture(${index}, 'name', this.value)">
+                    <div style="display: flex; gap: 10px;">
+                        <input type="text" placeholder="Room" value="${lecture.room}" 
+                               onchange="updateLecture(${index}, 'room', this.value)" style="flex: 1;">
+                        <button class="btn btn-danger" onclick="removeLecture(${index})">Remove</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+        
+        // Show success message
+        function showSuccess(message) {
+            const alert = document.getElementById('successAlert');
+            alert.textContent = message;
+            alert.style.display = 'block';
+            setTimeout(() => {
+                alert.style.display = 'none';
+            }, 3000);
+        }
+        
+        // Show error message
+        function showError(message) {
+            const alert = document.getElementById('errorAlert');
+            alert.textContent = message;
+            alert.style.display = 'block';
+            setTimeout(() => {
+                alert.style.display = 'none';
+            }, 5000);
         }
         
         // Initialize
-        loadContent();
+        loadConfig();
     </script>
 </body>
 </html>
