@@ -3,11 +3,12 @@ Description=Digital Signage Display Server
 After=network.target
 
 [Service]
-Type=notify
+Type=simple
 User=pi
 Group=pi
 WorkingDirectory=/opt/digital-signage
-Environment="PATH=/opt/digital-signage/venv/bin"
+Environment="PATH=/opt/digital-signage/venv/bin:/usr/local/bin:/usr/bin:/bin"
+Environment="PYTHONUNBUFFERED=1"
 ExecStart=/opt/digital-signage/venv/bin/gunicorn --config /opt/digital-signage/gunicorn_config.py app:app
 ExecReload=/bin/kill -s HUP $MAINPID
 KillMode=mixed
@@ -15,6 +16,8 @@ TimeoutStopSec=5
 PrivateTmp=true
 Restart=always
 RestartSec=10
+StandardOutput=journal
+StandardError=journal
 
 [Install]
 WantedBy=multi-user.target

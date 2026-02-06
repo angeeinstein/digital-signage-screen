@@ -148,11 +148,11 @@ install_system_packages() {
 setup_directories() {
     print_header "Setting Up Directories"
     
-    # Create log directory
+    # Create log directory (even though we use journald now, keep for compatibility)
     print_info "Creating log directory: $LOG_DIR"
     mkdir -p "$LOG_DIR"
     
-    # Create run directory
+    # Create run directory (not needed anymore but keep for compatibility)
     print_info "Creating run directory: $RUN_DIR"
     mkdir -p "$RUN_DIR"
     
@@ -165,6 +165,19 @@ setup_directories() {
     
     # Ensure static directory exists
     mkdir -p "$INSTALL_DIR/static"
+    
+    # Create a default config if it doesn't exist
+    if [[ ! -f "$INSTALL_DIR/config.json" ]]; then
+        print_info "Creating default configuration..."
+        cat > "$INSTALL_DIR/config.json" << 'EOF'
+{
+  "refresh_interval": 30,
+  "rotation_enabled": true,
+  "content_items": [],
+  "display_name": "Digital Signage Display"
+}
+EOF
+    fi
     
     print_success "Directories configured"
 }
@@ -325,21 +338,26 @@ set_permissions() {
     
     print_info "Setting ownership to $USER:$GROUP..."
     chown -R "$USER:$GROUP" "$INSTALL_DIR"
-    chown -R "$USER:$GROUP" "$LOG_DIR"
-    chown -R "$USER:$GROUP" "$RUN_DIR"
+    chown -R "$USER:$GROUP" "$LOG_DIR" 2>/dev/null || true
+    chown -R "$USER:$GROUP" "$RUN_DIR" 2>/dev/null || true
     
     print_info "Setting file permissions..."
     chmod 755 "$INSTALL_DIR"
-    chmod 755 "$LOG_DIR"
-    chmod 755 "$RUN_DIR"
+    chmod 755 "$LOG_DIR" 2>/dev/null || true
+    chmod 755 "$RUN_DIR" 2>/dev/null || true
     chmod -R 644 "$INSTALL_DIR"/*.py 2>/dev/null || true
     chmod -R 755 "$INSTALL_DIR/content" 2>/dev/null || true
+    chmod 644 "$INSTALL_DIR/config.json" 2>/dev/null || true
     
     # Allow binding to port 80 without root
     print_info "Configuring port binding capabilities..."
-    setcap 'cap_net_bind_service=+ep' "$VENV_DIR/bin/python3" || {
-        print_warning "Failed to set capabilities. Service may need to run on port > 1024"
-    }
+    if command -v setcap &> /dev/null; then
+        setcap 'cap_net_bind_service=+ep' "$VENV_DIR/bin/python3" 2>/dev/null || {
+            print_warning "Failed to set capabilities. You may need to run on port > 1024 or use nginx"
+        }
+    else
+        print_warning "setcap not available. Service may need to run on port > 1024"
+    fi
     
     print_success "Permissions configured"
 }
@@ -353,24 +371,38 @@ start_service() {
         systemctl stop "$SERVICE_NAME"
     fi
     
+    # Reload systemd to ensure latest service file is loaded
+    print_info "Reloading systemd daemon..."
+    systemctl daemon-reload
+    
     # Start service
     print_info "Starting $SERVICE_NAME service..."
     systemctl start "$SERVICE_NAME" || {
         print_error "Failed to start service"
-        print_info "Checking service status..."
-        systemctl status "$SERVICE_NAME" --no-pager || true
+        print_info "Recent service logs:"
+        journalctl -u "$SERVICE_NAME" -n 50 --no-pager || true
+        print_info ""
+        print_info "Checking Python environment..."
+        "$VENV_DIR/bin/python3" --version || print_error "Python not found in venv"
+        print_info "Checking Flask installation..."
+        "$VENV_DIR/bin/python3" -c "import flask; print(f'Flask {flask.__version__}')" || print_error "Flask not installed"
+        print_info "Checking Gunicorn installation..."
+        "$VENV_DIR/bin/gunicorn" --version || print_error "Gunicorn not found"
         exit 1
     }
     
     # Wait a moment and check status
-    sleep 2
+    sleep 3
     
     if systemctl is-active --quiet "$SERVICE_NAME"; then
         print_success "Service started successfully"
     else
         print_error "Service failed to start"
-        print_info "Service logs:"
-        journalctl -u "$SERVICE_NAME" -n 50 --no-pager
+        print_info "Service status:"
+        systemctl status "$SERVICE_NAME" --no-pager --lines=20 || true
+        print_info ""
+        print_info "Recent logs:"
+        journalctl -u "$SERVICE_NAME" -n 100 --no-pager
         exit 1
     fi
 }

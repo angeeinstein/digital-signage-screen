@@ -141,6 +141,57 @@ sudo journalctl -u digital-signage -f
 ## Troubleshooting
 
 ### Service won't start
+
+**Check service status and logs:**
+```bash
+sudo systemctl status digital-signage
+sudo journalctl -u digital-signage -n 100 --no-pager
+```
+
+**Common issues and fixes:**
+
+1. **Port 80 permission denied**
+   ```bash
+   # Option 1: Set capabilities (done automatically by installer)
+   sudo setcap 'cap_net_bind_service=+ep' /opt/digital-signage/venv/bin/python3
+   
+   # Option 2: Use port 8080 instead
+   # Edit /opt/digital-signage/gunicorn_config.py
+   # Change: bind = "0.0.0.0:8080"
+   sudo systemctl restart digital-signage
+   ```
+
+2. **Missing Python packages**
+   ```bash
+   cd /opt/digital-signage
+   source venv/bin/activate
+   pip install -r requirements.txt
+   sudo systemctl restart digital-signage
+   ```
+
+3. **Templates not found**
+   ```bash
+   # Ensure templates directory exists
+   ls -la /opt/digital-signage/templates/
+   
+   # If missing, re-run installer
+   curl -sSL https://raw.githubusercontent.com/angeeinstein/digital-signage-screen/main/install.sh | sudo bash
+   # Choose option 3 (Repair)
+   ```
+
+4. **Permission errors**
+   ```bash
+   sudo chown -R pi:pi /opt/digital-signage
+   sudo chmod -R 755 /opt/digital-signage
+   sudo systemctl restart digital-signage
+   ```
+
+**Run diagnostic test:**
+```bash
+curl -sSL https://raw.githubusercontent.com/angeeinstein/digital-signage-screen/main/test-install.sh | sudo bash
+```
+
+### Service won't start
 ```bash
 # Check service status
 sudo systemctl status digital-signage

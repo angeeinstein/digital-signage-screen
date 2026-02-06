@@ -24,16 +24,16 @@ max_requests_jitter = 50
 
 # Server mechanics
 daemon = False
-pidfile = "/var/run/digital-signage/gunicorn.pid"
+pidfile = None  # Let systemd manage the PID
 umask = 0
-user = None
+user = None  # Run as the user specified in systemd service
 group = None
 tmp_upload_dir = None
 
-# Logging
-errorlog = "/var/log/digital-signage/error.log"
+# Logging - use stdout/stderr for systemd journal
+errorlog = "-"  # Log to stderr (systemd captures this)
 loglevel = "info"
-accesslog = "/var/log/digital-signage/access.log"
+accesslog = "-"  # Log to stdout (systemd captures this)
 access_log_format = '%(h)s %(l)s %(u)s %(t)s "%(r)s" %(s)s %(b)s "%(f)s" "%(a)s"'
 
 # Process naming
