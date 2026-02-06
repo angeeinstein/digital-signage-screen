@@ -22,7 +22,7 @@
         .container {
             display: grid;
             grid-template-columns: 2fr 1fr;
-            grid-template-rows: auto 1fr auto;
+            grid-template-rows: 1fr auto;
             gap: 15px;
             padding: 15px;
             height: 100vh;
@@ -36,6 +36,7 @@
             box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
             border: 1px solid rgba(255, 255, 255, 0.18);
             overflow: hidden;
+            position: relative;
         }
         
         .widget-header {
@@ -53,15 +54,14 @@
         
         /* Header - Time and Date */
         .header {
-            grid-column: 1 / -1;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 20px 30px;
-        }
-        
-        .header h1 {
-            font-size: 36px;
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            z-index: 100;
+            background: rgba(0, 0, 0, 0.3);
+            backdrop-filter: blur(10px);
+            padding: 15px 25px;
+            border-radius: 10px;
         }
         
         .datetime {
@@ -69,12 +69,12 @@
         }
         
         .time {
-            font-size: 48px;
+            font-size: 42px;
             font-weight: bold;
         }
         
         .date {
-            font-size: 24px;
+            font-size: 18px;
             opacity: 0.9;
         }
         
@@ -86,22 +86,23 @@
         
         .flight-radar iframe {
             width: 100%;
-            height: calc(100% - 50px);
+            height: 100%;
             border: none;
             border-radius: 10px;
         }
         
         /* Hide iframe UI elements with overlay masks */
-        .flight-radar::after {
+        .flight-radar::before {
             content: '';
             position: absolute;
-            top: 50px;
+            top: 0;
             right: 0;
-            width: 80px;
-            height: 400px;
-            background: rgba(30, 60, 114, 0.95);
+            width: 100px;
+            height: 100%;
+            background: linear-gradient(to left, rgba(30, 60, 114, 0.98), transparent);
             pointer-events: none;
-            border-radius: 0 0 0 10px;
+            z-index: 10;
+            border-radius: 0 10px 10px 0;
         }
         
         /* Weather */
@@ -142,7 +143,7 @@
         /* Transport */
         .transport {
             overflow-y: auto;
-            max-height: 400px;
+            max-height: 500px;
         }
         
         .transport-list {
@@ -152,7 +153,7 @@
         }
         
         .transport-item {
-            background: rgba(255, 255, 255, 0.1);
+            background: rgba(255, 255, 255, 0.15);
             padding: 15px;
             border-radius: 8px;
             display: flex;
@@ -177,6 +178,7 @@
         .timetable {
             grid-column: 1 / -1;
             overflow-y: auto;
+            max-height: 350px;
         }
         
         .timetable-grid {
@@ -241,16 +243,15 @@
     </style>
 </head>
 <body>
-    <div class="container">
-        <!-- Header with Time and Date -->
-        <div class="widget header">
-            <h1>✈️ Aviation Student Information</h1>
-            <div class="datetime">
-                <div class="time" id="time">00:00:00</div>
-                <div class="date" id="date">Loading...</div>
-            </div>
+    <!-- Floating Time/Date Header -->
+    <div class="header">
+        <div class="datetime">
+            <div class="time" id="time">00:00:00</div>
+            <div class="date" id="date">Loading...</div>
         </div>
-        
+    </div>
+    
+    <div class="container">
         <!-- Flight Radar -->
         <div class="widget flight-radar">
             <div class="widget-header">
@@ -381,10 +382,11 @@
         // Load flight radar
         function loadFlightRadar() {
             const iframe = document.getElementById('flight-radar');
-            // Default to ADS-B Exchange with embedded view, hide UI elements
+            // ADS-B Exchange with cleaner embed view
             const lat = config.location?.lat || 50.0;
             const lon = config.location?.lon || 8.0;
-            iframe.src = `https://globe.adsbexchange.com/?icao=~&lat=${lat}&lon=${lon}&zoom=8.5&enableLabels&extendedLabels=2&trackLabels&noIsolation&hideButtons&SiteLat=${lat}&SiteLon=${lon}`;
+            // Using embed parameters to minimize UI
+            iframe.src = `https://globe.adsbexchange.com/?icao=~&lat=${lat}&lon=${lon}&zoom=8.5&enableLabels&extendedLabels=1&trackLabels&SiteLat=${lat}&SiteLon=${lon}&hideSidebar&hideButtons`;
         }
         
         // Load weather
