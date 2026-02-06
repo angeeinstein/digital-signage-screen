@@ -273,6 +273,9 @@ def get_nearest_flights():
             
             nearby_flights.append({
                 'callsign': flight.get('flight_icao') or flight.get('flight_iata') or flight.get('reg_number', 'Unknown'),
+                'flight_number': flight.get('flight_iata', ''),
+                'airline': flight.get('airline_iata', ''),
+                'aircraft_type': flight.get('aircraft_icao', ''),
                 'hex': flight.get('hex', ''),
                 'altitude': int(flight.get('alt', 0) * 3.28084) if flight.get('alt') else 0,  # Convert m to ft
                 'speed': int(flight.get('speed', 0) * 1.94384) if flight.get('speed') else 0,  # Convert km/h to kts
@@ -281,11 +284,11 @@ def get_nearest_flights():
                 'to': flight.get('arr_iata', '')
             })
         
-        # Sort by distance and get nearest 2
+        # Sort by distance and get nearest 5
         nearby_flights.sort(key=lambda x: x['distance'])
-        nearest_two = nearby_flights[:2]
+        nearest = nearby_flights[:5]
         
-        return jsonify({'success': True, 'flights': nearest_two})
+        return jsonify({'success': True, 'flights': nearest})
         
     except requests.exceptions.RequestException as e:
         logger.error(f"Error fetching flights from AirLabs: {e}")
@@ -479,6 +482,59 @@ def test_timetable_api():
         return jsonify({'success': False, 'message': 'Connection error'}), 500
     except Exception as e:
         logger.error(f"Error testing timetable API: {e}")
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+
+@app.route('/api/test/airlabs')
+def test_airlabs_api():
+    """Test AirLabs API"""
+    try:
+        api_key = request.args.get('api_key', '').strip()
+        lat = float(request.args.get('lat', 50.0))
+        lon = float(request.args.get('lon', 8.0))
+        
+        if not api_key:
+            return jsonify({'success': False, 'message': 'No API key provided'}), 400
+        
+        # Calculate small bounding box for testing
+        import math
+        radius_km = 50  # Small test radius
+        lat_delta = radius_km / 111.0
+        lon_delta = radius_km / (111.0 * math.cos(math.radians(lat)))
+        
+        lat_min = lat - lat_delta
+        lat_max = lat + lat_delta
+        lon_min = lon - lon_delta
+        lon_max = lon + lon_delta
+        
+        bbox = f"{lat_min:.2f},{lon_min:.2f},{lat_max:.2f},{lon_max:.2f}"
+        url = f"https://airlabs.co/api/v9/flights?api_key={api_key}&bbox={bbox}"
+        
+        response = requests.get(url, timeout=10)
+        
+        if response.status_code == 200:
+            data = response.json()
+            
+            if data.get('error'):
+                return jsonify({
+                    'success': False, 
+                    'message': data.get('error', {}).get('message', 'API error')
+                }), 400
+            
+            flights = data.get('response', [])
+            return jsonify({
+                'success': True,
+                'flights_count': len(flights)
+            })
+        else:
+            return jsonify({'success': False, 'message': f'HTTP {response.status_code}'}), response.status_code
+            
+    except requests.exceptions.Timeout:
+        return jsonify({'success': False, 'message': 'Request timeout'}), 500
+    except requests.exceptions.ConnectionError:
+        return jsonify({'success': False, 'message': 'Connection error'}), 500
+    except Exception as e:
+        logger.error(f"Error testing AirLabs API: {e}")
         return jsonify({'success': False, 'message': str(e)}), 500
 
 

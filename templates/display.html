@@ -98,22 +98,27 @@
             background: rgba(0, 0, 0, 0.4);
             padding: 15px;
             margin-top: 15px;
-            max-height: 150px;
+            max-height: 350px;
             overflow-y: auto;
         }
         
         .flight-item {
-            display: grid;
-            grid-template-columns: auto 1fr auto;
-            gap: 15px;
-            padding: 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            padding: 12px;
             background: rgba(255, 255, 255, 0.1);
-            margin-bottom: 8px;
-            align-items: center;
+            margin-bottom: 10px;
         }
         
         .flight-item:last-child {
             margin-bottom: 0;
+        }
+        
+        .flight-main {
+            display: flex;
+            align-items: center;
+            gap: 12px;
         }
         
         .flight-icon {
@@ -124,6 +129,7 @@
             display: flex;
             flex-direction: column;
             gap: 3px;
+            flex: 1;
         }
         
         .flight-number {
@@ -137,9 +143,23 @@
         }
         
         .flight-distance {
-            font-size: 14px;
+            font-size: 16px;
+            font-weight: bold;
             text-align: right;
+            opacity: 0.9;
+        }
+        
+        .flight-details {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            font-size: 12px;
             opacity: 0.8;
+            padding-left: 36px;
+        }
+        
+        .flight-details span {
+            white-space: nowrap;
         }
         
         /* Weather */
@@ -350,20 +370,20 @@
                     </div>
                 </div>
             </div>
-        </div>
-        
-        <!-- Timetable -->
-        <div class="widget timetable">
-            <div class="widget-header">
-                <span class="icon">📅</span>
-                <span>Next Lectures</span>
-            </div>
-            <div class="timetable-grid" id="timetable-grid">
-                <div class="lecture">
-                    <div class="lecture-year">Loading...</div>
-                    <div class="lecture-time">--:--</div>
-                    <div class="lecture-name">Please wait</div>
-                    <div class="lecture-room">Room ---</div>
+            
+            <!-- Timetable integrated into weather widget -->
+            <div style="margin-top: 25px; padding-top: 20px; border-top: 2px solid rgba(255,255,255,0.2);">
+                <div class="widget-header" style="margin-bottom: 15px;">
+                    <span class="icon">📅</span>
+                    <span>Next Lectures</span>
+                </div>
+                <div class="timetable-grid" id="timetable-grid">
+                    <div class="lecture">
+                        <div class="lecture-year">Loading...</div>
+                        <div class="lecture-time">--:--</div>
+                        <div class="lecture-name">Please wait</div>
+                        <div class="lecture-room">Room ---</div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -439,16 +459,29 @@
                 if (data.success && data.flights && data.flights.length > 0) {
                     const container = document.getElementById('nearest-flights');
                     container.style.display = 'block';
-                    container.innerHTML = data.flights.map(flight => `
-                        <div class="flight-item">
-                            <div class="flight-icon">✈️</div>
-                            <div class="flight-info">
-                                <div class="flight-number">${flight.callsign}</div>
-                                <div class="flight-route">${flight.altitude} ft · ${flight.speed} kts</div>
-                            </div>
-                            <div class="flight-distance">${flight.distance} km</div>
+                    container.innerHTML = `
+                        <div style="font-weight: bold; font-size: 16px; margin-bottom: 10px; border-bottom: 2px solid rgba(255,255,255,0.3); padding-bottom: 8px;">
+                            Nearest Flights
                         </div>
-                    `).join('');
+                        ${data.flights.map(flight => `
+                            <div class="flight-item">
+                                <div class="flight-main">
+                                    <div class="flight-icon">✈️</div>
+                                    <div class="flight-info">
+                                        <div class="flight-number">${flight.flight_number || flight.callsign}</div>
+                                        <div class="flight-route">${flight.from || '?'} → ${flight.to || '?'}</div>
+                                    </div>
+                                    <div class="flight-distance">${flight.distance} km</div>
+                                </div>
+                                <div class="flight-details">
+                                    ${flight.airline ? `<span>✈ ${flight.airline}</span>` : ''}
+                                    ${flight.aircraft_type ? `<span>🛩 ${flight.aircraft_type}</span>` : ''}
+                                    <span>📏 ${flight.altitude} ft</span>
+                                    <span>⚡ ${flight.speed} kts</span>
+                                </div>
+                            </div>
+                        `).join('')}
+                    `;
                 } else {
                     // Hide the nearest flights section when not available
                     const container = document.getElementById('nearest-flights');
