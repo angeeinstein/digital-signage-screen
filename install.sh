@@ -658,24 +658,32 @@ perform_installation() {
     print_success "Digital Signage is now running!"
     echo ""
     
-    # Detect which port to show
-    local port=80
-    if grep -q "127.0.0.1:5000" "$INSTALL_DIR/gunicorn_config.py" 2>/dev/null; then
+    # Detect which port is configured
+    local port=8080
+    if grep -q "bind = \"0.0.0.0:8080\"" "$INSTALL_DIR/gunicorn_config.py" 2>/dev/null; then
+        port=8080
+    elif grep -q "bind = \"0.0.0.0:80\"" "$INSTALL_DIR/gunicorn_config.py" 2>/dev/null; then
         port=80
-        echo "Access the display at (via Nginx):"
-    else
+    elif grep -q "bind = \"127.0.0.1:5000\"" "$INSTALL_DIR/gunicorn_config.py" 2>/dev/null; then
         port=80
-        echo "Access the display at:"
+        echo "Using Nginx on port 80 (proxying to internal port 5000)"
     fi
     
     local ip=$(hostname -I | awk '{print $1}')
-    echo "  - http://${ip}"
+    echo "Access the display at:"
     if [[ "$port" == "80" ]]; then
+        echo "  - http://${ip}"
         echo "  - http://${ip}:80"
+    else
+        echo "  - http://${ip}:${port}"
     fi
     echo ""
     echo "Admin panel at:"
-    echo "  - http://${ip}/admin"
+    if [[ "$port" == "80" ]]; then
+        echo "  - http://${ip}/admin"
+    else
+        echo "  - http://${ip}:${port}/admin"
+    fi
     echo ""
     echo "Service management:"
     echo "  - Start:   sudo systemctl start $SERVICE_NAME"
