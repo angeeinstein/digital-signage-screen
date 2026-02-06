@@ -427,6 +427,18 @@ GitHub: https://github.com/angeeinstein/digital-signage-screen
 
 MIT License - Feel free to use and modify for your needs.
 
+### Aircraft Icon Attribution
+
+The aircraft SVG icons used in this project are provided by [ADS-B Radar](https://adsb-radar.com). These icons are free to use for personal and commercial projects with attribution.
+
+**Required Attribution:**
+Please provide a backlink to ADS-B Radar somewhere in your project, website, or documentation - or support them by purchasing the [ADS-B Radar App](https://apps.apple.com/app/id1538149835).
+
+**Example attribution:**
+```
+Icons by ADS-B Radar for macOS - https://adsb-radar.com - https://apps.apple.com/app/id1538149835
+```
+
 ## Version
 
 Current Version: 1.0.0
