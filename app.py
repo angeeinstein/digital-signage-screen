@@ -220,27 +220,41 @@ def get_trias_timestamp():
 
 def search_trias_stops(query, limit=20):
     """Search for transit stops using TRIAS API"""
-    xml_request = f'''<?xml version="1.0" encoding="UTF-8"?>
-<Trias xmlns="http://www.vdv.de/trias" xmlns:siri="http://www.siri.org.uk/siri" version="1.2">
-    <ServiceRequest>
-        <siri:RequestTimestamp>{get_trias_timestamp()}</siri:RequestTimestamp>
-        <siri:RequestorRef>digital_signage</siri:RequestorRef>
-        <RequestPayload>
-            <LocationInformationRequest>
-                <InitialInput>
-                    <LocationName>
-                        <Text>{query}</Text>
-                        <Language>de</Language>
-                    </LocationName>
-                </InitialInput>
-                <Restrictions>
-                    <Type>stop</Type>
-                    <NumberOfResults>{limit * 2}</NumberOfResults>
-                </Restrictions>
-            </LocationInformationRequest>
-        </RequestPayload>
-    </ServiceRequest>
-</Trias>'''
+    # Build XML using ElementTree for proper encoding
+    trias = ET.Element('Trias', {
+        'xmlns': TRIAS_NAMESPACES['trias'],
+        'xmlns:siri': TRIAS_NAMESPACES['siri'],
+        'version': '1.2'
+    })
+    
+    service_request = ET.SubElement(trias, 'ServiceRequest')
+    
+    timestamp = ET.SubElement(service_request, '{%s}RequestTimestamp' % TRIAS_NAMESPACES['siri'])
+    timestamp.text = get_trias_timestamp()
+    
+    requestor_ref = ET.SubElement(service_request, '{%s}RequestorRef' % TRIAS_NAMESPACES['siri'])
+    requestor_ref.text = 'digital_signage'
+    
+    request_payload = ET.SubElement(service_request, 'RequestPayload')
+    loc_info_req = ET.SubElement(request_payload, 'LocationInformationRequest')
+    
+    initial_input = ET.SubElement(loc_info_req, 'InitialInput')
+    location_name = ET.SubElement(initial_input, 'LocationName')
+    text = ET.SubElement(location_name, 'Text')
+    text.text = query
+    language = ET.SubElement(location_name, 'Language')
+    language.text = 'de'
+    
+    restrictions = ET.SubElement(loc_info_req, 'Restrictions')
+    type_elem = ET.SubElement(restrictions, 'Type')
+    type_elem.text = 'stop'
+    num_results = ET.SubElement(restrictions, 'NumberOfResults')
+    num_results.text = str(limit * 2)
+    
+    # Convert to string
+    xml_string = ET.tostring(trias, encoding='utf-8', method='xml')
+    xml_declaration = b'<?xml version="1.0" encoding="UTF-8"?>\n'
+    xml_request = (xml_declaration + xml_string).decode('utf-8')
     
     try:
         response = requests.post(
@@ -250,6 +264,10 @@ def search_trias_stops(query, limit=20):
             timeout=10
         )
         response.raise_for_status()
+        
+        # Log the raw response for debugging
+        logger.info(f"TRIAS search for '{query}' - Response status: {response.status_code}")
+        logger.debug(f"TRIAS response: {response.text[:500]}")  # First 500 chars
         
         # Parse XML response
         root = ET.fromstring(response.content)
@@ -292,6 +310,7 @@ def search_trias_stops(query, limit=20):
                 latitude = float(lat_elem.text) if lat_elem is not None else None
             
             if stop_ref is not None and stop_name is not None:
+                logger.debug(f"Found stop: {stop_name} (ID: {stop_ref})")
                 # Group multiple platforms/variants of the same stop
                 if stop_name in stops_dict:
                     # Add this stop_id to the list of IDs for this stop
