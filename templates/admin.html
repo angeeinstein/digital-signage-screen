@@ -311,8 +311,41 @@
             </div>
             
             <div class="form-group">
-                <h3>Route Cache Management</h3>
-                <p class="help-text">Add known flight routes to enhance display with airport information. The system learns routes automatically over time.</p>
+                <h3>🌐 OpenSky Network - Automatic Route Discovery</h3>
+                <div class="form-group checkbox-group">
+                    <input type="checkbox" id="openskyEnabled" checked>
+                    <label for="openskyEnabled">Enable automatic route lookup</label>
+                </div>
+                <p class="help-text">
+                    OpenSky Network provides historical flight data to automatically discover routes.<br>
+                    <strong>Free tier:</strong> 4,000 API credits/day (anonymous) or 8,000/day (with account)<br>
+                    Routes are cached for efficiency - only unknown flights trigger API lookups.
+                </p>
+                
+                <div class="form-group">
+                    <label for="openskyUsername">OpenSky Username (Optional)</label>
+                    <input type="text" id="openskyUsername" placeholder="Leave empty for anonymous access">
+                    <div class="help-text">
+                        <strong>Optional:</strong> Create free account at <a href="https://opensky-network.org/register" target="_blank">opensky-network.org</a><br>
+                        Benefits: Higher rate limits (4,000 → 8,000 credits/day), historical data access
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="openskyPassword">OpenSky Password (Optional)</label>
+                    <input type="password" id="openskyPassword" placeholder="Leave empty for anonymous access">
+                </div>
+                
+                <div class="form-group">
+                    <label for="cacheExpiry">Cache Expiry (days)</label>
+                    <input type="number" id="cacheExpiry" value="7" min="1" max="90" step="1">
+                    <div class="help-text">How many days to keep cached routes before refreshing (default: 7 days)</div>
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <h3>Manual Route Override</h3>
+                <p class="help-text">Optionally add specific routes manually (automatic discovery will still work for other flights).</p>
                 <div style="display: grid; grid-template-columns: 2fr 1fr 1fr auto; gap: 10px; margin-top: 10px;">
                     <input type="text" id="routeCallsign" placeholder="Flight (e.g., DLH123)">
                     <input type="text" id="routeFrom" placeholder="From (e.g., FRA)">
@@ -399,10 +432,15 @@
                     
                     // AirLabs
                     document.getElementById('airlabsEnabled').checked = config.airlabs?.enabled !== false;
-                    document.getElementById('flightApiProvider').value = config.airlabs?.api_provider || 'airlabs';
-                    document.getElementById('airlabsApiKey').value = config.airlabs?.api_key || '';
+                    document.getElementById('flightApiProvider').value = config.airlabs?.api_provider || 'airplaneslive';
                     document.getElementById('airlabsRadius').value = config.airlabs?.radius_km || 75;
                     toggleFlightApiSettings();
+                    
+                    // OpenSky
+                    document.getElementById('openskyEnabled').checked = config.opensky?.enabled !== false;
+                    document.getElementById('openskyUsername').value = config.opensky?.username || '';
+                    document.getElementById('openskyPassword').value = config.opensky?.password || '';
+                    document.getElementById('cacheExpiry').value = config.opensky?.cache_days || 7;
                     
                     // Transport
                     document.getElementById('transportEnabled').checked = config.transport?.enabled || false;
@@ -435,8 +473,13 @@
                     airlabs: {
                         enabled: document.getElementById('airlabsEnabled').checked,
                         api_provider: document.getElementById('flightApiProvider').value,
-                        api_key: document.getElementById('airlabsApiKey').value,
                         radius_km: parseInt(document.getElementById('airlabsRadius').value) || 75
+                    },
+                    opensky: {
+                        enabled: document.getElementById('openskyEnabled').checked,
+                        username: document.getElementById('openskyUsername').value,
+                        password: document.getElementById('openskyPassword').value,
+                        cache_days: parseInt(document.getElementById('cacheExpiry').value) || 7
                     },
                     transport: {
                         enabled: document.getElementById('transportEnabled').checked,

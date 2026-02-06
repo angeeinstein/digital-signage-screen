@@ -11,6 +11,7 @@ import json
 import logging
 import requests
 import math
+import time
 from pathlib import Path
 
 # Configure logging
@@ -48,6 +49,12 @@ DEFAULT_DASHBOARD_CONFIG = {
         'enabled': True,
         'api_provider': 'airplaneslive',  # 'airlabs' or 'airplaneslive'
         'radius_km': 75  # Radius for nearby flights in km
+    },
+    'opensky': {
+        'username': '',  # OpenSky Network username (optional, increases rate limit)
+        'password': '',  # OpenSky Network password
+        'enabled': True,  # Enable automatic route lookup
+        'cache_days': 7  # Days to cache route data before refresh
     },
     'transport': {
         'enabled': False,
@@ -107,23 +114,42 @@ def save_flight_routes_cache(cache):
         logger.error(f"Error saving flight routes cache: {e}")
 
 
-def get_route_from_cache(callsign, cache):
+def get_route_from_cache(callsign, cache, cache_days=7):
     """Get departure and arrival airports from cache for a callsign"""
     if not callsign:
-        return '', ''
+        return '', '', False
     
     # Try exact match first
     if callsign in cache:
         route = cache[callsign]
-        return route.get('from', ''), route.get('to', '')
+        # Check if cache is still valid
+        if 'last_seen' in route:
+            try:
+                last_seen = datetime.fromisoformat(route['last_seen'])
+                age_days = (datetime.now() - last_seen).days
+                if age_days < cache_days:
+                    return route.get('from', ''), route.get('to', ''), True
+                else:
+                    return route.get('from', ''), route.get('to', ''), False  # Expired
+            except:
+                pass
+        return route.get('from', ''), route.get('to', ''), True
     
     # Try without flight number (e.g., "UAL123" -> "UAL")
     airline_code = ''.join(filter(str.isalpha, callsign[:3]))
     if airline_code and airline_code in cache:
         route = cache[airline_code]
-        return route.get('from', ''), route.get('to', '')
+        if 'last_seen' in route:
+            try:
+                last_seen = datetime.fromisoformat(route['last_seen'])
+                age_days = (datetime.now() - last_seen).days
+                if age_days < cache_days:
+                    return route.get('from', ''), route.get('to', ''), True
+            except:
+                pass
+        return route.get('from', ''), route.get('to', ''), True
     
-    return '', ''
+    return '', '', False
 
 
 def update_route_cache(callsign, from_airport, to_airport, cache):
@@ -137,6 +163,52 @@ def update_route_cache(callsign, from_airport, to_airport, cache):
         'last_seen': datetime.now().isoformat()
     }
     save_flight_routes_cache(cache)
+
+
+def fetch_route_from_opensky(icao24, config):
+    """Fetch flight route from OpenSky Network API"""
+    try:
+        opensky_config = config.get('opensky', {})
+        if not opensky_config.get('enabled', True):
+            return None, None
+        
+        username = opensky_config.get('username', '').strip()
+        password = opensky_config.get('password', '').strip()
+        
+        # Query recent flights for this aircraft (last 7 days)
+        end_time = int(time.time())
+        begin_time = end_time - (7 * 24 * 3600)  # 7 days ago
+        
+        url = f"https://opensky-network.org/api/flights/aircraft?icao24={icao24.lower()}&begin={begin_time}&end={end_time}"
+        
+        # Add authentication if provided
+        auth = None
+        if username and password:
+            auth = (username, password)
+        
+        response = requests.get(url, auth=auth, timeout=10)
+        
+        if response.status_code == 200:
+            flights = response.json()
+            if flights and len(flights) > 0:
+                # Get the most recent flight
+                latest_flight = flights[-1]
+                departure = latest_flight.get('estDepartureAirport', '')
+                arrival = latest_flight.get('estArrivalAirport', '')
+                
+                if departure or arrival:
+                    logger.info(f"OpenSky: Found route for {icao24}: {departure} → {arrival}")
+                    return departure, arrival
+        elif response.status_code == 401:
+            logger.warning("OpenSky API: Authentication failed. Check credentials.")
+        elif response.status_code == 429:
+            logger.warning("OpenSky API: Rate limit exceeded. Using cache only.")
+        
+        return None, None
+        
+    except Exception as e:
+        logger.error(f"Error fetching route from OpenSky for {icao24}: {e}")
+        return None, None
 
 
 @app.route('/')
@@ -349,7 +421,21 @@ def get_flights_airplaneslive(config, flight_config):
                 airline_name = airline_names.get(airline_code, '')
             
             # Try to get route from cache
-            from_airport, to_airport = get_route_from_cache(callsign, route_cache)
+            opensky_config = config.get('opensky', {})
+            cache_days = opensky_config.get('cache_days', 7)
+            from_airport, to_airport, is_valid = get_route_from_cache(callsign, route_cache, cache_days)
+            
+            # If not in cache or expired, try to fetch from OpenSky
+            icao24 = aircraft.get('hex', '').lower()
+            if (not from_airport and not to_airport) or not is_valid:
+                if icao24 and opensky_config.get('enabled', True):
+                    # Fetch from OpenSky in background (don't block)
+                    opensky_from, opensky_to = fetch_route_from_opensky(icao24, config)
+                    if opensky_from or opensky_to:
+                        from_airport = opensky_from or from_airport
+                        to_airport = opensky_to or to_airport
+                        # Update cache
+                        update_route_cache(callsign, from_airport, to_airport, route_cache)
             
             nearby_flights.append({
                 'callsign': callsign,
