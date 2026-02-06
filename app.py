@@ -219,7 +219,160 @@ def get_trias_timestamp():
     return datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ')
 
 def search_trias_stops(query, limit=20):
-    """Search for transit stops using TRIAS API"""
+    """Search for transit stops using TRIAS API with coordinate-based fallback"""
+    # Try initial name-based search
+    stops = _search_trias_api(query, limit)
+    
+    # If we got few results, try coordinate-based search near configured location
+    if len(stops) < 3:
+        config = load_dashboard_config()
+        lat = config.get('location', {}).get('lat')
+        lon = config.get('location', {}).get('lon')
+        
+        if lat and lon:
+            logger.info(f"Name search returned {len(stops)} results, trying coordinate search near {lat},{lon}")
+            nearby_stops = _search_trias_by_coordinates(lon, lat, query, radius=5000, limit=limit)
+            
+            # Add new stops (avoid duplicates by stop_id)
+            existing_ids = {s['stop_id'] for s in stops}
+            for stop in nearby_stops:
+                if stop['stop_id'] not in existing_ids:
+                    stops.append(stop)
+                    existing_ids.add(stop['stop_id'])
+    
+    return stops[:limit]
+
+def _search_trias_by_coordinates(longitude, latitude, name_filter=None, radius=5000, limit=20):
+    """Search for transit stops near coordinates using TRIAS API"""
+    # Register namespace prefixes for proper output
+    ET.register_namespace('', TRIAS_NAMESPACES['trias'])
+    ET.register_namespace('siri', TRIAS_NAMESPACES['siri'])
+    
+    # Build XML using ElementTree for proper encoding
+    trias = ET.Element('Trias', {
+        'xmlns': TRIAS_NAMESPACES['trias'],
+        'version': '1.2'
+    })
+    
+    service_request = ET.SubElement(trias, 'ServiceRequest')
+    
+    timestamp = ET.SubElement(service_request, '{%s}RequestTimestamp' % TRIAS_NAMESPACES['siri'])
+    timestamp.text = get_trias_timestamp()
+    
+    requestor_ref = ET.SubElement(service_request, '{%s}RequestorRef' % TRIAS_NAMESPACES['siri'])
+    requestor_ref.text = 'digital_signage'
+    
+    request_payload = ET.SubElement(service_request, 'RequestPayload')
+    loc_info_req = ET.SubElement(request_payload, 'LocationInformationRequest')
+    
+    # Use InitialInput with GeoPosition
+    initial_input = ET.SubElement(loc_info_req, 'InitialInput')
+    geo_position = ET.SubElement(initial_input, 'GeoPosition')
+    lon_elem = ET.SubElement(geo_position, 'Longitude')
+    lon_elem.text = str(longitude)
+    lat_elem = ET.SubElement(geo_position, 'Latitude')
+    lat_elem.text = str(latitude)
+    
+    restrictions = ET.SubElement(loc_info_req, 'Restrictions')
+    type_elem = ET.SubElement(restrictions, 'Type')
+    type_elem.text = 'stop'
+    num_results = ET.SubElement(restrictions, 'NumberOfResults')
+    num_results.text = str(limit * 3)  # Get more results to filter by name
+    
+    # Convert to string
+    xml_string = ET.tostring(trias, encoding='utf-8', method='xml')
+    xml_declaration = b'<?xml version="1.0" encoding="UTF-8"?>\n'
+    xml_request = (xml_declaration + xml_string).decode('utf-8')
+    
+    try:
+        response = requests.post(
+            TRIAS_API_URL,
+            data=xml_request.encode('utf-8'),
+            headers={'Content-Type': 'text/xml; charset=utf-8'},
+            timeout=10
+        )
+        response.raise_for_status()
+        
+        logger.info(f"TRIAS coordinate search at {latitude},{longitude} - Response status: {response.status_code}")
+        
+        # Parse XML response
+        root = ET.fromstring(response.content)
+        stops_dict = {}  # Use dict to group by stop name
+        
+        # Count locations found
+        locations = root.findall('.//trias:Location', TRIAS_NAMESPACES)
+        logger.info(f"Found {len(locations)} Location elements in coordinate search")
+        
+        for location in locations:
+            # Try to find StopPoint first, then StopPlace
+            stop_point = location.find('trias:StopPoint', TRIAS_NAMESPACES)
+            stop_place = location.find('trias:StopPlace', TRIAS_NAMESPACES)
+            
+            stop_ref = None
+            stop_name = None
+            
+            if stop_point is not None:
+                stop_point_ref = stop_point.find('trias:StopPointRef', TRIAS_NAMESPACES)
+                if stop_point_ref is None:
+                    continue
+                stop_ref = stop_point_ref.text
+                stop_point_name = stop_point.find('trias:StopPointName/trias:Text', TRIAS_NAMESPACES)
+                stop_name = stop_point_name.text if stop_point_name is not None else None
+                
+            elif stop_place is not None:
+                stop_place_ref = stop_place.find('trias:StopPlaceRef', TRIAS_NAMESPACES)
+                if stop_place_ref is None:
+                    continue
+                stop_ref = stop_place_ref.text
+                stop_place_name = stop_place.find('trias:StopPlaceName/trias:Text', TRIAS_NAMESPACES)
+                stop_name = stop_place_name.text if stop_place_name is not None else None
+            
+            # Get coordinates
+            geo_position = location.find('trias:GeoPosition', TRIAS_NAMESPACES)
+            longitude = None
+            latitude = None
+            if geo_position is not None:
+                lon_elem = geo_position.find('trias:Longitude', TRIAS_NAMESPACES)
+                lat_elem = geo_position.find('trias:Latitude', TRIAS_NAMESPACES)
+                longitude = float(lon_elem.text) if lon_elem is not None else None
+                latitude = float(lat_elem.text) if lat_elem is not None else None
+            
+            if stop_ref is not None and stop_name is not None:
+                # Filter by name if provided
+                if name_filter:
+                    if name_filter.lower() not in stop_name.lower():
+                        continue
+                
+                logger.info(f"Found nearby stop: {stop_name} (ID: {stop_ref})")
+                # Group multiple platforms/variants of the same stop
+                if stop_name in stops_dict:
+                    if stop_ref not in stops_dict[stop_name]['stop_ids']:
+                        stops_dict[stop_name]['stop_ids'].append(stop_ref)
+                else:
+                    stops_dict[stop_name] = {
+                        'stop_id': stop_ref,
+                        'stop_ids': [stop_ref],
+                        'stop_name': stop_name,
+                        'longitude': longitude,
+                        'latitude': latitude
+                    }
+        
+        # Convert dict to list and limit results
+        stops = []
+        for stop_name, stop_data in list(stops_dict.items())[:limit]:
+            platform_count = len(stop_data['stop_ids'])
+            if platform_count > 1:
+                stop_data['stop_name'] = f"{stop_name} ({platform_count} platforms)"
+            stops.append(stop_data)
+        
+        logger.info(f"Returning {len(stops)} stops from coordinate search")
+        return stops
+    except Exception as e:
+        logger.error(f"Error in TRIAS coordinate search: {e}")
+        return []
+
+def _search_trias_api(query, limit=20):
+    """Search for transit stops using TRIAS API by name"""
     # Register namespace prefixes for proper output
     ET.register_namespace('', TRIAS_NAMESPACES['trias'])
     ET.register_namespace('siri', TRIAS_NAMESPACES['siri'])
