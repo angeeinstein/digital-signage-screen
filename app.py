@@ -267,11 +267,15 @@ def search_trias_stops(query, limit=20):
         
         # Log the raw response for debugging
         logger.info(f"TRIAS search for '{query}' - Response status: {response.status_code}")
-        logger.debug(f"TRIAS response: {response.text[:500]}")  # First 500 chars
+        logger.info(f"TRIAS response (first 1000 chars): {response.text[:1000]}")
         
         # Parse XML response
         root = ET.fromstring(response.content)
         stops_dict = {}  # Use dict to group by stop name
+        
+        # Count locations found
+        locations = root.findall('.//trias:Location', TRIAS_NAMESPACES)
+        logger.info(f"Found {len(locations)} Location elements in response")
         
         for location in root.findall('.//trias:Location', TRIAS_NAMESPACES):
             # Try to find StopPoint first, then StopPlace
@@ -310,7 +314,7 @@ def search_trias_stops(query, limit=20):
                 latitude = float(lat_elem.text) if lat_elem is not None else None
             
             if stop_ref is not None and stop_name is not None:
-                logger.debug(f"Found stop: {stop_name} (ID: {stop_ref})")
+                logger.info(f"Found stop: {stop_name} (ID: {stop_ref})")
                 # Group multiple platforms/variants of the same stop
                 if stop_name in stops_dict:
                     # Add this stop_id to the list of IDs for this stop
@@ -334,6 +338,7 @@ def search_trias_stops(query, limit=20):
                 stop_data['stop_name'] = f"{stop_name} ({platform_count} platforms)"
             stops.append(stop_data)
         
+        logger.info(f"Returning {len(stops)} stops after grouping")
         return stops
     except Exception as e:
         logger.error(f"Error searching TRIAS stops: {e}")
