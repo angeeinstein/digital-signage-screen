@@ -1117,6 +1117,14 @@ def get_flights_airplaneslive(config, flight_config):
                     logger.debug(f"OpenSky lookup disabled or no ICAO24 for {callsign}")
             
             aircraft_type_code = aircraft.get('t', '')
+            
+            # Detect Austrian Christophorus rescue helicopters (C + number)
+            # If airplanes.live doesn't provide aircraft type, set it to Helicopter
+            if not aircraft_type_code and callsign and len(callsign) > 1:
+                if callsign[0].upper() == 'C' and callsign[1:].isdigit():
+                    aircraft_type_code = 'H145'  # Common type for Christophorus fleet
+                    logger.debug(f"Detected Christophorus helicopter: {callsign} -> H145")
+            
             nearby_flights.append({
                 'callsign': callsign,
                 'flight_number': callsign,
