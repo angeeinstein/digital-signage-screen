@@ -512,9 +512,9 @@ def get_flights_airplaneslive(config, flight_config):
                 'to': to_airport  # From cache if available
             })
         
-        # Sort by distance and get nearest 5
+        # Sort by distance and get nearest 4
         nearby_flights.sort(key=lambda x: x['distance'])
-        nearest = nearby_flights[:5]
+        nearest = nearby_flights[:4]
         
         return jsonify({'success': True, 'flights': nearest})
         
