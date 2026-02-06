@@ -533,7 +533,6 @@
                 const response = await fetch('/api/dashboard/timetable');
                 const data = await response.json();
                 
-        setInterval(loadNearestFlights, 30000); // 30 seconds
                 if (data.success && data.lectures.length > 0) {
                     const grid = document.getElementById('timetable-grid');
                     const now = new Date();
