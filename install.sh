@@ -329,8 +329,9 @@ configure_nginx() {
             fi
         fi
         
-        # Ensure gunicorn uses port 80
-        sed -i 's/bind = "127.0.0.1:5000"/bind = "0.0.0.0:80"/' "$INSTALL_DIR/gunicorn_config.py" 2>/dev/null || true
+        # Ensure gunicorn uses port 8080 (default, no special permissions needed)
+        sed -i 's/bind = "127.0.0.1:5000"/bind = "0.0.0.0:8080"/' "$INSTALL_DIR/gunicorn_config.py" 2>/dev/null || true
+        sed -i 's/bind = "0.0.0.0:80"/bind = "0.0.0.0:8080"/' "$INSTALL_DIR/gunicorn_config.py" 2>/dev/null || true
         
         return
     fi

@@ -7,7 +7,7 @@ import multiprocessing
 import os
 
 # Server socket
-bind = "0.0.0.0:80"
+bind = "0.0.0.0:8080"  # Use 8080 to avoid permission issues with port 80
 backlog = 2048
 
 # Worker processes - optimized for Raspberry Pi 5

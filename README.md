@@ -52,10 +52,10 @@ The script will:
 ### Accessing the Display
 
 Once installed, access your digital signage at:
-- **Main Display**: `http://<raspberry-pi-ip>/`
-- **Admin Panel**: `http://<raspberry-pi-ip>/admin`
+- **Main Display**: `http://<raspberry-pi-ip>:8080/`
+- **Admin Panel**: `http://<raspberry-pi-ip>:8080/admin`
 
-**Note**: The installer will show you the exact IP address at the end.
+**Note**: The installer will show you the exact IP address at the end. Default port is 8080 to avoid permission issues.
 
 ## Installation Script Features
 
