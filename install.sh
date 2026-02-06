@@ -502,7 +502,7 @@ handle_menu_choice() {
             ;;
         2)
             print_warning "This will remove all existing data!"
-            read -p "Are you sure? (yes/no): " confirm
+            read -p "Are you sure? (yes/no): " confirm < /dev/tty
             if [[ "$confirm" == "yes" ]]; then
                 print_info "Starting clean installation..."
                 systemctl stop "$SERVICE_NAME" 2>/dev/null || true
@@ -526,7 +526,7 @@ handle_menu_choice() {
             ;;
         4)
             print_warning "This will completely remove Digital Signage!"
-            read -p "Are you sure? (yes/no): " confirm
+            read -p "Are you sure? (yes/no): " confirm < /dev/tty
             if [[ "$confirm" == "yes" ]]; then
                 uninstall
             else
@@ -628,7 +628,7 @@ main() {
     # Check for existing installation
     if detect_installation; then
         show_menu
-        read -p "Enter your choice (1-5): " choice
+        read -p "Enter your choice (1-5): " choice < /dev/tty
         handle_menu_choice "$choice"
     else
         print_info "No existing installation detected"
