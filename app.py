@@ -227,7 +227,6 @@ def search_trias_stops(query, limit=20):
     # Build XML using ElementTree for proper encoding
     trias = ET.Element('Trias', {
         'xmlns': TRIAS_NAMESPACES['trias'],
-        'xmlns:siri': TRIAS_NAMESPACES['siri'],
         'version': '1.2'
     })
     
