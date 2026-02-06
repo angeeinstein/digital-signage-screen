@@ -152,15 +152,16 @@ def get_route_from_cache(callsign, cache, cache_days=7):
     return '', '', False
 
 
-def update_route_cache(callsign, from_airport, to_airport, cache):
+def update_route_cache(callsign, from_airport, to_airport, cache, not_found=False):
     """Update the route cache with new information"""
-    if not callsign or (not from_airport and not to_airport):
+    if not callsign:
         return
     
     cache[callsign] = {
-        'from': from_airport,
-        'to': to_airport,
-        'last_seen': datetime.now().isoformat()
+        'from': from_airport or '',
+        'to': to_airport or '',
+        'last_seen': datetime.now().isoformat(),
+        'not_found': not_found  # Mark if route lookup failed (404)
     }
     save_flight_routes_cache(cache)
 
@@ -247,6 +248,8 @@ def fetch_route_from_opensky(icao24, config):
                 logger.debug(f"OpenSky: No flights found for {icao24} in database")
         elif response.status_code == 401:
             logger.warning("OpenSky API: Authentication failed. Check credentials.")
+        elif response.status_code == 404:
+            logger.debug(f"OpenSky: No data found for {icao24} (404)")
         elif response.status_code == 429:
             logger.warning("OpenSky API: Rate limit exceeded. Using cache only.")
         elif response.status_code == 400:
@@ -480,9 +483,24 @@ def get_flights_airplaneslive(config, flight_config):
             cache_days = opensky_config.get('cache_days', 7)
             from_airport, to_airport, is_valid = get_route_from_cache(callsign, route_cache, cache_days)
             
+            # Check if this aircraft was previously marked as not found
+            skip_lookup = False
+            if callsign in route_cache:
+                cached = route_cache[callsign]
+                if cached.get('not_found', False):
+                    # Skip lookup if not_found was set within last 24 hours
+                    try:
+                        last_seen = datetime.fromisoformat(cached['last_seen'])
+                        hours_since = (datetime.now() - last_seen).total_seconds() / 3600
+                        if hours_since < 24:
+                            skip_lookup = True
+                            logger.debug(f"Skipping OpenSky lookup for {callsign} (not found {hours_since:.1f}h ago)")
+                    except:
+                        pass
+            
             # If not in cache or expired, try to fetch from OpenSky
             icao24 = aircraft.get('hex', '').lower()
-            if (not from_airport and not to_airport) or not is_valid:
+            if not skip_lookup and ((not from_airport and not to_airport) or not is_valid):
                 if icao24 and opensky_config.get('enabled', True):
                     logger.info(f"Fetching route for {callsign} (ICAO24: {icao24}) from OpenSky...")
                     # Fetch from OpenSky in background (don't block)
@@ -491,10 +509,12 @@ def get_flights_airplaneslive(config, flight_config):
                         from_airport = opensky_from or from_airport
                         to_airport = opensky_to or to_airport
                         logger.info(f"Found route for {callsign}: {from_airport} → {to_airport}")
-                        # Update cache
-                        update_route_cache(callsign, from_airport, to_airport, route_cache)
+                        # Update cache with successful result
+                        update_route_cache(callsign, from_airport, to_airport, route_cache, not_found=False)
                     else:
                         logger.info(f"No route found for {callsign} ({icao24}) in OpenSky database")
+                        # Cache the negative result to avoid retrying
+                        update_route_cache(callsign, '', '', route_cache, not_found=True)
                 else:
                     logger.debug(f"OpenSky lookup disabled or no ICAO24 for {callsign}")
             
