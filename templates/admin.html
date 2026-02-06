@@ -304,9 +304,30 @@
                 <label for="timetableEnabled">Enable Timetable Display</label>
             </div>
             
-            <div id="lecturesList"></div>
+            <div class="form-group checkbox-group">
+                <input type="checkbox" id="timetableUseApi">
+                <label for="timetableUseApi">Use External Timetable API</label>
+            </div>
             
-            <button class="btn btn-success" onclick="addLecture()">+ Add Lecture</button>
+            <div id="timetableApiSettings" style="display:none;">
+                <div class="form-group">
+                    <label for="timetableApiUrl">Timetable API URL</label>
+                    <input type="text" id="timetableApiUrl" placeholder="https://api.example.com/timetable">
+                </div>
+                
+                <div class="form-group">
+                    <label for="timetableApiKey">API Key (if required)</label>
+                    <input type="text" id="timetableApiKey" placeholder="Optional API key">
+                </div>
+                
+                <button class="btn btn-secondary" onclick="testTimetableAPI()">🧪 Test Timetable API</button>
+                <div id="timetableApiTestResult"></div>
+            </div>
+            
+            <div id="manualTimetableSettings">
+                <div id="lecturesList"></div>
+                <button class="btn btn-success" onclick="addLecture()">+ Add Lecture</button>
+            </div>
         </div>
         
         <!-- Save Button -->
@@ -347,13 +368,29 @@
                     
                     // Timetable
                     document.getElementById('timetableEnabled').checked = config.timetable?.enabled !== false;
+                    document.getElementById('timetableUseApi').checked = config.timetable?.use_api || false;
+                    document.getElementById('timetableApiUrl').value = config.timetable?.api_url || '';
+                    document.getElementById('timetableApiKey').value = config.timetable?.api_key || '';
                     lectures = config.timetable?.lectures || [];
                     renderLectures();
+                    toggleTimetableApiSettings();
                 }
             } catch (error) {
                 showError('Failed to load configuration: ' + error.message);
             }
         }
+        
+        // Toggle timetable API settings visibility
+        function toggleTimetableApiSettings() {
+            const useApi = document.getElementById('timetableUseApi').checked;
+            document.getElementById('timetableApiSettings').style.display = useApi ? 'block' : 'none';
+            document.getElementById('manualTimetableSettings').style.display = useApi ? 'none' : 'block';
+        }
+        
+        // Event listener for timetable API toggle
+        document.addEventListener('DOMContentLoaded', function() {
+            document.getElementById('timetableUseApi').addEventListener('change', toggleTimetableApiSettings);
+        });
         
         // Save configuration
         async function saveConfig() {
@@ -375,6 +412,9 @@
                     },
                     timetable: {
                         enabled: document.getElementById('timetableEnabled').checked,
+                        use_api: document.getElementById('timetableUseApi').checked,
+                        api_url: document.getElementById('timetableApiUrl').value,
+                        api_key: document.getElementById('timetableApiKey').value,
                         lectures: lectures
                     }
                 };
@@ -553,6 +593,40 @@
                 if (data.success) {
                     resultDiv.className = 'test-result success';
                     resultDiv.textContent = `✅ API working! Response received successfully.`;
+                } else {
+                    resultDiv.className = 'test-result error';
+                    resultDiv.textContent = `❌ API Error: ${data.message}`;
+                }
+            } catch (error) {
+                resultDiv.className = 'test-result error';
+                resultDiv.textContent = `❌ Connection error: ${error.message}`;
+            }
+        }
+        
+        // Test timetable API
+        async function testTimetableAPI() {
+            const apiUrl = document.getElementById('timetableApiUrl').value;
+            const apiKey = document.getElementById('timetableApiKey').value;
+            const resultDiv = document.getElementById('timetableApiTestResult');
+            
+            if (!apiUrl) {
+                resultDiv.className = 'test-result error';
+                resultDiv.textContent = '❌ Please enter API URL first';
+                resultDiv.style.display = 'block';
+                return;
+            }
+            
+            resultDiv.className = 'test-result';
+            resultDiv.textContent = '⏳ Testing API...';
+            resultDiv.style.display = 'block';
+            
+            try {
+                const response = await fetch(`/api/test/timetable?api_url=${encodeURIComponent(apiUrl)}&api_key=${encodeURIComponent(apiKey)}`);
+                const data = await response.json();
+                
+                if (data.success) {
+                    resultDiv.className = 'test-result success';
+                    resultDiv.innerHTML = `✅ <strong>API working!</strong><br>Found ${data.lectures_count} lecture(s)`;
                 } else {
                     resultDiv.className = 'test-result error';
                     resultDiv.textContent = `❌ API Error: ${data.message}`;

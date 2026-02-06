@@ -31,7 +31,7 @@
         .widget {
             background: rgba(255, 255, 255, 0.1);
             backdrop-filter: blur(10px);
-            border-radius: 15px;
+            border-radius: 0;
             padding: 20px;
             box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
             border: 1px solid rgba(255, 255, 255, 0.18);
@@ -61,7 +61,7 @@
             background: rgba(0, 0, 0, 0.3);
             backdrop-filter: blur(10px);
             padding: 15px 25px;
-            border-radius: 10px;
+            border-radius: 0;
         }
         
         .datetime {
@@ -82,27 +82,64 @@
         .flight-radar {
             grid-row: span 2;
             position: relative;
+            display: flex;
+            flex-direction: column;
         }
         
         .flight-radar iframe {
             width: 100%;
-            height: 100%;
+            flex: 1;
             border: none;
-            border-radius: 10px;
+            border-radius: 0;
         }
         
-        /* Hide iframe UI elements with overlay masks */
-        .flight-radar::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            right: 0;
-            width: 100px;
-            height: 100%;
-            background: linear-gradient(to left, rgba(30, 60, 114, 0.98), transparent);
-            pointer-events: none;
-            z-index: 10;
-            border-radius: 0 10px 10px 0;
+        /* Nearest flights list */
+        .nearest-flights {
+            background: rgba(0, 0, 0, 0.4);
+            padding: 15px;
+            margin-top: 15px;
+            max-height: 150px;
+            overflow-y: auto;
+        }
+        
+        .flight-item {
+            display: grid;
+            grid-template-columns: auto 1fr auto;
+            gap: 15px;
+            padding: 10px;
+            background: rgba(255, 255, 255, 0.1);
+            margin-bottom: 8px;
+            align-items: center;
+        }
+        
+        .flight-item:last-child {
+            margin-bottom: 0;
+        }
+        
+        .flight-icon {
+            font-size: 24px;
+        }
+        
+        .flight-info {
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
+        }
+        
+        .flight-number {
+            font-weight: bold;
+            font-size: 16px;
+        }
+        
+        .flight-route {
+            font-size: 13px;
+            opacity: 0.9;
+        }
+        
+        .flight-distance {
+            font-size: 14px;
+            text-align: right;
+            opacity: 0.8;
         }
         
         /* Weather */
@@ -118,17 +155,17 @@
             gap: 20px;
         }
         
-        .weather-temp {
-            font-size: 48px;
+        .weather-temp {0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .transport-line {
             font-weight: bold;
-        }
-        
-        .weather-icon {
-            font-size: 64px;
-        }
-        
-        .weather-details {
-            display: grid;
+            font-size: 18px;
+            padding: 5px 10px;
+            border-radius: 0
             grid-template-columns: 1fr 1fr;
             gap: 12px;
             font-size: 18px;
@@ -153,7 +190,7 @@
         }
         
         .transport-item {
-            background: rgba(255, 255, 255, 0.15);
+            background: rgb05, 255, 255, 0.15);
             padding: 15px;
             border-radius: 8px;
             display: flex;
@@ -222,6 +259,11 @@
             opacity: 0.9;
         }
         
+            
+            <!-- Nearest Flights List -->
+            <div class="nearest-flights" id="nearest-flights">
+                <div style="font-size: 14px; opacity: 0.7;">Loading nearest flights...</div>
+            </div>
         /* Scrollbar styling */
         ::-webkit-scrollbar {
             width: 8px;
@@ -377,11 +419,41 @@
             loadWeather();
             loadTransport();
             loadTimetable();
+        }minimal UI - using mapOnly parameter
+            const lat = config.location?.lat || 50.0;
+            const lon = config.location?.lon || 8.0;
+            // Using minimal embed mode
+            iframe.src = `https://globe.adsbexchange.com/?lat=${lat}&lon=${lon}&zoom=8.5&enableLabels&extendedLabels=1&trackLabels&mapDim=0&hideSidebar&hideButtons&mapOnly`;
+            
+            // Load nearest flights
+            loadNearestFlights();
         }
         
-        // Load flight radar
-        function loadFlightRadar() {
-            const iframe = document.getElementById('flight-radar');
+        // Load nearest flights
+        async function loadNearestFlights() {
+            try {
+                const response = await fetch('/api/dashboard/nearest-flights');
+                const data = await response.json();
+                
+                if (data.success && data.flights.length > 0) {
+                    const container = document.getElementById('nearest-flights');
+                    container.innerHTML = data.flights.map(flight => `
+                        <div class="flight-item">
+                            <div class="flight-icon">✈️</div>
+                            <div class="flight-info">
+                                <div class="flight-number">${flight.callsign || flight.hex || 'Unknown'}</div>
+                                <div class="flight-route">${flight.altitude} ft · ${flight.speed} kts</div>
+                            </div>
+                            <div class="flight-distance">${flight.distance} km</div>
+                        </div>
+                    `).join('');
+                } else {
+                    const container = document.getElementById('nearest-flights');
+                    container.innerHTML = '<div style="font-size: 14px; opacity: 0.7;">No nearby flights detected</div>';
+                }
+            } catch (error) {
+                console.error('Failed to load nearest flights:', error);
+            }
             // ADS-B Exchange with cleaner embed view
             const lat = config.location?.lat || 50.0;
             const lon = config.location?.lon || 8.0;
@@ -457,6 +529,7 @@
                 const response = await fetch('/api/dashboard/timetable');
                 const data = await response.json();
                 
+        setInterval(loadNearestFlights, 30000); // 30 seconds
                 if (data.success && data.lectures.length > 0) {
                     const grid = document.getElementById('timetable-grid');
                     const now = new Date();

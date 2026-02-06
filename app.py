@@ -48,6 +48,9 @@ DEFAULT_DASHBOARD_CONFIG = {
     },
     'timetable': {
         'enabled': True,
+        'use_api': False,  # Set to True when using external API
+        'api_url': '',  # URL for timetable API endpoint
+        'api_key': '',  # API key if required
         'lectures': [
             {
                 'year': 'Year 1',
@@ -213,6 +216,68 @@ def get_transport():
         return jsonify({'success': False, 'message': str(e)}), 500
 
 
+@app.route('/api/dashboard/nearest-flights')
+def get_nearest_flights():
+    """Get nearest flights from ADS-B Exchange"""
+    try:
+        config = load_dashboard_config()
+        lat = config.get('location', {}).get('lat', 50.0)
+        lon = config.get('location', {}).get('lon', 8.0)
+        
+        # ADS-B Exchange API - using public API
+        # Note: This is a simplified version. For production, consider API rate limits
+        url = f"https://globe.adsbexchange.com/api/aircraft.php"
+        
+        try:
+            response = requests.get(url, timeout=5)
+            if response.status_code == 200:
+                data = response.json()
+                aircraft_list = data.get('aircraft', [])
+                
+                # Calculate distance and filter nearby aircraft
+                import math
+                nearby_flights = []
+                
+                for aircraft in aircraft_list:
+                    if 'lat' not in aircraft or 'lon' not in aircraft:
+                        continue
+                    
+                    # Calculate distance using Haversine formula
+                    lat1, lon1 = math.radians(lat), math.radians(lon)
+                    lat2, lon2 = math.radians(aircraft['lat']), math.radians(aircraft['lon'])
+                    
+                    dlat = lat2 - lat1
+                    dlon = lon2 - lon1
+                    
+                    a = math.sin(dlat/2)**2 + math.cos(lat1) * math.cos(lat2) * math.sin(dlon/2)**2
+                    c = 2 * math.asin(math.sqrt(a))
+                    distance = 6371 * c  # Earth radius in km
+                    
+                    if distance < 150:  # Within 150km
+                        nearby_flights.append({
+                            'callsign': aircraft.get('flight', '').strip() or aircraft.get('r', 'Unknown'),
+                            'hex': aircraft.get('hex', ''),
+                            'altitude': aircraft.get('alt_baro', 0),
+                            'speed': aircraft.get('gs', 0),
+                            'distance': round(distance, 1)
+                        })
+                
+                # Sort by distance and get nearest 2
+                nearby_flights.sort(key=lambda x: x['distance'])
+                nearest_two = nearby_flights[:2]
+                
+                return jsonify({'success': True, 'flights': nearest_two})
+        except:
+            pass
+        
+        # Fallback to empty list if API fails
+        return jsonify({'success': True, 'flights': []})
+        
+    except Exception as e:
+        logger.error(f"Error fetching nearest flights: {e}")
+        return jsonify({'success': True, 'flights': []})
+
+
 @app.route('/api/dashboard/timetable')
 def get_timetable():
     """Get lecture timetable"""
@@ -223,6 +288,32 @@ def get_timetable():
         if not timetable_config.get('enabled', True):
             return jsonify({'success': True, 'lectures': []})
         
+        # Check if using external API
+        if timetable_config.get('use_api', False):
+            api_url = timetable_config.get('api_url', '').strip()
+            api_key = timetable_config.get('api_key', '').strip()
+            
+            if not api_url:
+                return jsonify({'success': False, 'message': 'Timetable API URL not configured'}), 400
+            
+            # Fetch from external API
+            headers = {}
+            if api_key:
+                # Adjust header key based on your API's requirements
+                headers['Authorization'] = f'Bearer {api_key}'
+            
+            response = requests.get(api_url, headers=headers, timeout=10)
+            response.raise_for_status()
+            
+            api_data = response.json()
+            
+            # Assuming API returns lectures in format: {'lectures': [...]}
+            # Adjust this based on your actual API response structure
+            lectures = api_data.get('lectures', api_data if isinstance(api_data, list) else [])
+            
+            return jsonify({'success': True, 'lectures': lectures})
+        
+        # Use local/manual timetable
         # Get current day of week
         now = datetime.now()
         weekday = now.strftime('%A')
@@ -253,6 +344,9 @@ def get_timetable():
         
         return jsonify({'success': True, 'lectures': upcoming_lectures})
         
+    except requests.exceptions.RequestException as e:
+        logger.error(f"Error fetching timetable from API: {e}")
+        return jsonify({'success': False, 'message': f'API request failed: {str(e)}'}), 500
     except Exception as e:
         logger.error(f"Error fetching timetable: {e}")
         return jsonify({'success': False, 'message': str(e)}), 500
@@ -359,6 +453,49 @@ def test_transport_api():
         return jsonify({'success': False, 'message': 'Connection error'}), 500
     except Exception as e:
         logger.error(f"Error testing transport API: {e}")
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+
+@app.route('/api/test/timetable')
+def test_timetable_api():
+    """Test timetable API"""
+    try:
+        api_url = request.args.get('api_url', '').strip()
+        api_key = request.args.get('api_key', '').strip()
+        
+        if not api_url:
+            return jsonify({'success': False, 'message': 'No API URL provided'}), 400
+        
+        headers = {}
+        if api_key:
+            headers['Authorization'] = f'Bearer {api_key}'
+        
+        response = requests.get(api_url, headers=headers, timeout=10)
+        
+        if response.status_code == 200:
+            data = response.json()
+            # Try to extract lecture count from response
+            lectures = data.get('lectures', data if isinstance(data, list) else [])
+            lectures_count = len(lectures) if isinstance(lectures, list) else 'unknown'
+            return jsonify({
+                'success': True, 
+                'lectures_count': lectures_count
+            })
+        else:
+            error_msg = 'Unknown error'
+            try:
+                error_data = response.json()
+                error_msg = error_data.get('message', error_msg)
+            except:
+                error_msg = f'HTTP {response.status_code}'
+            return jsonify({'success': False, 'message': f'API Error: {error_msg}'}), response.status_code
+            
+    except requests.exceptions.Timeout:
+        return jsonify({'success': False, 'message': 'Request timeout'}), 500
+    except requests.exceptions.ConnectionError:
+        return jsonify({'success': False, 'message': 'Connection error'}), 500
+    except Exception as e:
+        logger.error(f"Error testing timetable API: {e}")
         return jsonify({'success': False, 'message': str(e)}), 500
 
 

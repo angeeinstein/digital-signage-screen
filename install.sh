@@ -488,9 +488,13 @@ backup_installation() {
         cp -r "$INSTALL_DIR/content" "$backup_dir/" || true
     fi
     
-    # Backup config file
+    # Backup config files
     if [[ -f "$INSTALL_DIR/config.json" ]]; then
         cp "$INSTALL_DIR/config.json" "$backup_dir/" || true
+    fi
+    
+    if [[ -f "$INSTALL_DIR/dashboard_config.json" ]]; then
+        cp "$INSTALL_DIR/dashboard_config.json" "$backup_dir/" || true
     fi
     
     # Keep only last 5 backups
@@ -517,9 +521,13 @@ restore_from_backup() {
         cp -r "$LAST_BACKUP_DIR/content/"* "$INSTALL_DIR/content/" 2>/dev/null || true
     fi
     
-    # Restore config
+    # Restore config files
     if [[ -f "$LAST_BACKUP_DIR/config.json" ]]; then
         cp "$LAST_BACKUP_DIR/config.json" "$INSTALL_DIR/" || true
+    fi
+    
+    if [[ -f "$LAST_BACKUP_DIR/dashboard_config.json" ]]; then
+        cp "$LAST_BACKUP_DIR/dashboard_config.json" "$INSTALL_DIR/" || true
     fi
     
     print_success "Content and configuration restored"
