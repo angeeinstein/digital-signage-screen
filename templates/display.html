@@ -103,106 +103,56 @@
         }
         
         .flight-item {
-            display: flex;
+            display: grid;
+            grid-template-columns: 40px 130px 180px 140px 100px 140px 130px 100px;
             align-items: center;
             gap: 15px;
-            padding: 15px 12px;
+            padding: 18px 12px;
             background: rgba(255, 255, 255, 0.1);
             margin-bottom: 10px;
+            font-size: 18px;
         }
         
         .flight-item:last-child {
             margin-bottom: 0;
         }
         
-        .flight-main {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-        }
-        
         .flight-icon {
-            font-size: 28px;
-            flex-shrink: 0;
+            font-size: 32px;
         }
         
-        .flight-full-info {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            flex: 1;
-            flex-wrap: wrap;
-            font-size: 16px;
-        }
-        
-        .flight-number-large {
+        .flight-number-col {
             font-weight: bold;
+            font-size: 20px;
+        }
+        
+        .flight-airline-col {
+            font-size: 18px;
+            opacity: 0.9;
+        }
+        
+        .flight-route-col {
+            font-size: 18px;
+            opacity: 0.9;
+        }
+        
+        .flight-aircraft-col {
+            font-size: 17px;
+            opacity: 0.85;
+        }
+        
+        .flight-altitude-col {
             font-size: 18px;
         }
         
-        .flight-airline-large {
-            font-size: 16px;
-            opacity: 0.9;
-        }
-        
-        .flight-route-large {
-            font-size: 16px;
-            opacity: 0.9;
-        }
-        
-        .flight-aircraft {
-            font-size: 14px;
-            opacity: 0.8;
-        }
-        
-        .flight-separator {
-            opacity: 0.4;
-            font-size: 12px;
-        }
-        
-        .flight-info {
-            display: flex;
-            flex-direction: column;
-            gap: 3px;
-            flex: 1;
-        }
-        
-        .flight-number {
-            font-weight: bold;
-            font-size: 16px;
-        }
-        
-        .flight-route {
-            font-size: 13px;
-            opacity: 0.9;
-        }
-        
-        .flight-distance {
-            font-size: 16px;
-            font-weight: bold;
-            text-align: right;
-            opacity: 0.9;
-        }
-        
-        .flight-distance-large {
+        .flight-speed-col {
             font-size: 18px;
+        }
+        
+        .flight-distance-col {
+            font-size: 20px;
             font-weight: bold;
             text-align: right;
-            opacity: 0.9;
-            flex-shrink: 0;
-        }
-        
-        .flight-details {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 12px;
-            font-size: 12px;
-            opacity: 0.8;
-            padding-left: 36px;
-        }
-        
-        .flight-details span {
-            white-space: nowrap;
         }
         
         /* Weather */
@@ -353,10 +303,6 @@
     <div class="container">
         <!-- Flight Radar -->
         <div class="widget flight-radar">
-            <div class="widget-header">
-                <span class="icon">✈️</span>
-                <span>Live Flight Tracking</span>
-            </div>
             <iframe id="flight-radar" src="about:blank"></iframe>
             
             <!-- Nearest Flights List -->
@@ -503,26 +449,19 @@
                     const container = document.getElementById('nearest-flights');
                     container.style.display = 'block';
                     container.innerHTML = `
-                        <div style="font-weight: bold; font-size: 18px; margin-bottom: 12px; border-bottom: 2px solid rgba(255,255,255,0.3); padding-bottom: 8px;">
+                        <div style="font-weight: bold; font-size: 20px; margin-bottom: 15px; border-bottom: 2px solid rgba(255,255,255,0.3); padding-bottom: 10px;">
                             Nearest Flights
                         </div>
                         ${data.flights.map(flight => `
                             <div class="flight-item">
                                 <div class="flight-icon">✈️</div>
-                                <div class="flight-full-info">
-                                    <span class="flight-number-large">${flight.flight_number || flight.callsign}</span>
-                                    <span class="flight-separator">•</span>
-                                    <span class="flight-airline-large">${flight.airline_name || flight.airline || ''}</span>
-                                    <span class="flight-separator">•</span>
-                                    <span class="flight-route-large">${flight.from || '?'} → ${flight.to || '?'}</span>
-                                    <span class="flight-separator">•</span>
-                                    <span class="flight-aircraft">${flight.aircraft_type || ''}</span>
-                                    <span class="flight-separator">•</span>
-                                    <span>📏 ${flight.altitude} ft</span>
-                                    <span class="flight-separator">•</span>
-                                    <span>⚡ ${flight.speed} kts</span>
-                                </div>
-                                <div class="flight-distance-large">${flight.distance} km</div>
+                                <div class="flight-number-col">${flight.flight_number || flight.callsign}</div>
+                                <div class="flight-airline-col">${flight.airline_name || flight.airline || ''}</div>
+                                <div class="flight-route-col">${flight.from || '?'} → ${flight.to || '?'}</div>
+                                <div class="flight-aircraft-col">${flight.aircraft_type || ''}</div>
+                                <div class="flight-altitude-col">📏 ${flight.altitude} ft</div>
+                                <div class="flight-speed-col">⚡ ${flight.speed} kts</div>
+                                <div class="flight-distance-col">${flight.distance} km</div>
                             </div>
                         `).join('')}
                     `;
