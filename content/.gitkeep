@@ -1,0 +1,9 @@
+# Content Directory
+
+This directory is for your digital signage content files.
+
+Supported formats:
+- Images: .jpg, .jpeg, .png, .gif
+- Videos: .mp4, .webm
+
+Files placed here will automatically appear in the display rotation.
