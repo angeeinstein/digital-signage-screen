@@ -295,7 +295,7 @@
         
         .transport-status.live {
             background: rgba(255, 68, 68, 0.3);
-            color: #ff4444;
+            color: #fff;
         }
         
         .transport-status.planned {
@@ -424,10 +424,10 @@
             </div>
             
             <!-- Transport integrated into weather widget -->
-            <div style="margin-top: 25px; padding-top: 20px; border-top: 2px solid rgba(255,255,255,0.2);">
-                <div class="widget-header" style="margin-bottom: 15px;">
+            <div style="margin-top: 15px; padding-top: 15px; border-top: 2px solid rgba(255,255,255,0.2);">
+                <div class="widget-header" style="margin-bottom: 10px;">
                     <span class="icon">🚌</span>
-                    <span>Next Departures</span>
+                    <span id="transport-title">Next Departures</span>
                 </div>
                 <div class="transport-list" id="transport-list">
                     <div class="transport-item">
@@ -441,8 +441,8 @@
             </div>
             
             <!-- Timetable integrated into weather widget -->
-            <div style="margin-top: 25px; padding-top: 20px; border-top: 2px solid rgba(255,255,255,0.2);">
-                <div class="widget-header" style="margin-bottom: 15px;">
+            <div style="margin-top: 15px; padding-top: 15px; border-top: 2px solid rgba(255,255,255,0.2);">
+                <div class="widget-header" style="margin-bottom: 10px;">
                     <span class="icon">📅</span>
                     <span>Next Lectures</span>
                 </div>
@@ -634,6 +634,11 @@
                 
                 if (data.success && data.departures.length > 0) {
                     const list = document.getElementById('transport-list');
+                    
+                    // Update title with stop name if available
+                    if (data.stop_name) {
+                        document.getElementById('transport-title').textContent = `Next Departures ${data.stop_name}`;
+                    }
                     
                     // Function to calculate countdown
                     const getCountdown = (timestamp) => {

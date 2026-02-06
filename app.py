@@ -14,6 +14,7 @@ import math
 import time
 from pathlib import Path
 import xml.etree.ElementTree as ET
+from zoneinfo import ZoneInfo
 
 # Configure logging
 logging.basicConfig(
@@ -566,18 +567,23 @@ def get_trias_departures(stop_id, limit=10):
             mode = mode_elem.text if mode_elem is not None else 'bus'
             
             if departure_time:
-                # Parse ISO timestamp and format as HH:MM
+                # Parse ISO timestamp and convert from UTC to local time (Europe/Vienna)
                 try:
-                    dt = datetime.fromisoformat(departure_time.replace('Z', '+00:00'))
-                    time_str = dt.strftime('%H:%M')
-                except:
+                    dt_utc = datetime.fromisoformat(departure_time.replace('Z', '+00:00'))
+                    dt_local = dt_utc.astimezone(ZoneInfo('Europe/Vienna'))
+                    time_str = dt_local.strftime('%H:%M')
+                    # Convert to ISO for JavaScript with local timezone
+                    timestamp_local = dt_local.isoformat()
+                except Exception as e:
+                    logger.error(f"Error parsing time {departure_time}: {e}")
                     time_str = departure_time
+                    timestamp_local = departure_time
                 
                 departures.append({
                     'line': line_elem.text if line_elem is not None else 'N/A',
                     'direction': dest_elem.text if dest_elem is not None else 'N/A',
                     'time': time_str,
-                    'timestamp': departure_time,  # Full ISO timestamp for countdown
+                    'timestamp': timestamp_local,  # Local time for countdown
                     'mode': mode,  # bus, tram, etc.
                     'is_realtime': is_realtime
                 })
@@ -863,13 +869,18 @@ def get_transport():
             return jsonify({'success': True, 'departures': []})
         
         stop_id = transport_config.get('stop_id', '')
+        stop_name = transport_config.get('stop_name', '')
         if not stop_id:
             return jsonify({'success': True, 'departures': []})
         
         # Get departures from TRIAS API
         departures = get_trias_departures(stop_id, limit=8)
         
-        return jsonify({'success': True, 'departures': departures})
+        return jsonify({
+            'success': True, 
+            'departures': departures,
+            'stop_name': stop_name
+        })
         
     except Exception as e:
         logger.error(f"Error fetching transport: {e}")
