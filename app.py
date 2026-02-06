@@ -145,23 +145,43 @@ def get_weather():
         lat = config.get('location', {}).get('lat', 50.0)
         lon = config.get('location', {}).get('lon', 8.0)
         
-        url = f"https://api.openweathermap.org/data/2.5/weather?lat={lat}&lon={lon}&appid={api_key}&units=metric"
+        # Try One Call API 3.0 first (newer)
+        url = f"https://api.openweathermap.org/data/3.0/onecall?lat={lat}&lon={lon}&appid={api_key}&units=metric&exclude=minutely,hourly,daily,alerts"
         response = requests.get(url, timeout=5)
-        data = response.json()
         
         if response.status_code == 200:
+            data = response.json()
+            current = data.get('current', {})
             weather = {
-                'temp': data['main']['temp'],
-                'description': data['weather'][0]['description'].capitalize(),
-                'wind': round(data['wind']['speed'] * 3.6, 1),  # Convert m/s to km/h
-                'humidity': data['main']['humidity'],
-                'pressure': data['main']['pressure'],
-                'visibility': round(data.get('visibility', 10000) / 1000, 1),  # Convert m to km
-                'icon': data['weather'][0]['icon']
+                'temp': current.get('temp', 0),
+                'description': current.get('weather', [{}])[0].get('description', 'N/A').capitalize(),
+                'wind': round(current.get('wind_speed', 0) * 3.6, 1),  # Convert m/s to km/h
+                'humidity': current.get('humidity', 0),
+                'pressure': current.get('pressure', 1013),
+                'visibility': round(current.get('visibility', 10000) / 1000, 1),  # Convert m to km
+                'icon': current.get('weather', [{}])[0].get('icon', '01d')
             }
             return jsonify({'success': True, 'weather': weather})
-        else:
-            return jsonify({'success': False, 'message': 'Weather API error'}), 500
+        elif response.status_code == 401:
+            # If One Call API fails, try the free Current Weather API
+            logger.info("One Call API 3.0 failed, trying Current Weather Data API")
+            url = f"https://api.openweathermap.org/data/2.5/weather?lat={lat}&lon={lon}&appid={api_key}&units=metric"
+            response = requests.get(url, timeout=5)
+            
+            if response.status_code == 200:
+                data = response.json()
+                weather = {
+                    'temp': data['main']['temp'],
+                    'description': data['weather'][0]['description'].capitalize(),
+                    'wind': round(data['wind']['speed'] * 3.6, 1),  # Convert m/s to km/h
+                    'humidity': data['main']['humidity'],
+                    'pressure': data['main']['pressure'],
+                    'visibility': round(data.get('visibility', 10000) / 1000, 1),  # Convert m to km
+                    'icon': data['weather'][0]['icon']
+                }
+                return jsonify({'success': True, 'weather': weather})
+        
+        return jsonify({'success': False, 'message': 'Weather API error'}), 500
             
     except Exception as e:
         logger.error(f"Error fetching weather: {e}")
@@ -252,10 +272,28 @@ def test_weather_api():
         # Log for debugging
         logger.info(f"Testing weather API with key length: {len(api_key)}, lat: {lat}, lon: {lon}")
         
+        # Try One Call API 3.0 first
+        url = f"https://api.openweathermap.org/data/3.0/onecall?lat={lat}&lon={lon}&appid={api_key}&units=metric&exclude=minutely,hourly,daily,alerts"
+        response = requests.get(url, timeout=10)
+        
+        logger.info(f"One Call API 3.0 response: {response.status_code}")
+        
+        if response.status_code == 200:
+            data = response.json()
+            current = data.get('current', {})
+            return jsonify({
+                'success': True,
+                'temp': round(current.get('temp', 0), 1),
+                'description': current.get('weather', [{}])[0].get('description', 'N/A').capitalize(),
+                'location': 'One Call API 3.0'
+            })
+        
+        # If One Call API fails, try Current Weather Data API
+        logger.info("Trying Current Weather Data API")
         url = f"https://api.openweathermap.org/data/2.5/weather?lat={lat}&lon={lon}&appid={api_key}&units=metric"
         response = requests.get(url, timeout=10)
         
-        logger.info(f"Weather API response: {response.status_code}")
+        logger.info(f"Current Weather API response: {response.status_code}")
         
         if response.status_code == 200:
             data = response.json()
@@ -271,12 +309,12 @@ def test_weather_api():
                 error_msg = error_data.get('message', 'Invalid API key')
                 return jsonify({
                     'success': False, 
-                    'message': f'Invalid API key: {error_msg}. Note: New keys can take 10-15 minutes to activate!'
+                    'message': f'API key error: {error_msg}. If you just created the key, wait 10-15 minutes.'
                 }), 401
             except:
                 return jsonify({
                     'success': False, 
-                    'message': 'Invalid API key. New keys can take 10-15 minutes to activate!'
+                    'message': 'Invalid API key. Wait 10-15 minutes if just created.'
                 }), 401
         elif response.status_code == 429:
             return jsonify({'success': False, 'message': 'API rate limit exceeded. Wait a minute and try again'}), 429

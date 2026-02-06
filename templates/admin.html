@@ -266,7 +266,10 @@
                     <input type="text" id="weatherApiKey" placeholder="Get free API key from openweathermap.org">
                     <button class="btn btn-info btn-small" onclick="testWeatherAPI()">🧪 Test API</button>
                 </div>
-                <div class="help-text">Sign up at <a href="https://openweathermap.org/api" target="_blank">openweathermap.org/api</a> for a free API key</div>
+                <div class="help-text">
+                    Sign up at <a href="https://openweathermap.org/api" target="_blank">openweathermap.org/api</a><br>
+                    ✅ Works with both FREE "Current Weather Data" API and "One Call API 3.0" (1,000 calls/day free)
+                </div>
                 <div class="test-result" id="weatherTestResult"></div>
             </div>
         </div>
@@ -513,9 +516,9 @@
                         resultDiv.innerHTML = `❌ <strong>${data.message}</strong><br><br>
                             <strong>Troubleshooting:</strong><br>
                             1. If you just created the key, wait 10-15 minutes and try again<br>
-                            2. Copy the key again from <a href="https://home.openweathermap.org/api_keys" target="_blank">OpenWeatherMap</a><br>
-                            3. Make sure you copied the entire key (32 characters)<br>
-                            4. Key length: ${trimmedKey.length} characters`;
+                            2. Copy the key from <a href="https://home.openweathermap.org/api_keys" target="_blank">your API keys page</a><br>
+                            3. Key length: ${trimmedKey.length} characters (should be 32)<br>
+                            4. Make sure the API key is activated in your account`;
                     } else {
                         resultDiv.textContent = `❌ ${data.message}`;
                     }

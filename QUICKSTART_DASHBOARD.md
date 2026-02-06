@@ -20,6 +20,7 @@ curl -sSL https://raw.githubusercontent.com/angeeinstein/digital-signage-screen/
    - Go to https://openweathermap.org/api
    - Click "Sign Up" → Create free account
    - Navigate to "API keys" → Copy your key
+   - Works with both "Current Weather Data" or "One Call API 3.0" free tier (1,000 calls/day)
    - Paste in dashboard admin → Weather Settings
    - Click "🧪 Test API" to verify it works
    - Save configuration
