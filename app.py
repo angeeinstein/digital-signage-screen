@@ -214,9 +214,10 @@ def fetch_route_from_opensky(icao24, config):
         client_id = opensky_config.get('client_id', '').strip()
         client_secret = opensky_config.get('client_secret', '').strip()
         
-        # Query recent flights for this aircraft (last 7 days)
-        end_time = int(time.time())
-        begin_time = end_time - (7 * 24 * 3600)  # 7 days ago
+        # Query recent flights for this aircraft (last 7 days, excluding today)
+        # OpenSky's flight database is batch-processed at night, so we need to query past days
+        end_time = int(time.time()) - (1 * 24 * 3600)  # 1 day ago
+        begin_time = end_time - (7 * 24 * 3600)  # 8 days ago total
         
         url = f"https://opensky-network.org/api/flights/aircraft?icao24={icao24.lower()}&begin={begin_time}&end={end_time}"
         
@@ -896,9 +897,10 @@ def test_opensky_api():
         client_secret = request.args.get('client_secret', '').strip()
         
         # Test with a known aircraft (Lufthansa A380 example)
-        test_icao24 = 'd-aimn'  # Lufthansa A380
-        end_time = int(time.time())
-        begin_time = end_time - (7 * 24 * 3600)  # 7 days ago
+        test_icao24 = '3c6444'  # Lufthansa D-AIMC (A380)
+        # OpenSky flights data is batch processed - query 2-9 days ago to avoid current day
+        end_time = int(time.time()) - (2 * 24 * 3600)  # 2 days ago
+        begin_time = end_time - (7 * 24 * 3600)  # 9 days ago total
         
         url = f"https://opensky-network.org/api/flights/aircraft?icao24={test_icao24}&begin={begin_time}&end={end_time}"
         
