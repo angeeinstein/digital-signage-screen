@@ -72,38 +72,92 @@ DEFAULT_DASHBOARD_CONFIG = {
 
 
 def get_aircraft_category(aircraft_type):
-    """Map ICAO aircraft type code to icon category"""
+    """Map ICAO aircraft type code to icon filename (specific or category-based)"""
     if not aircraft_type:
-        return 'unknown'
+        return 'adsb_icons/a0'
     
     aircraft_type = aircraft_type.upper().strip()
     
+    # Specific aircraft type icons (exact matches from adsb_icons)
+    specific_icons = {
+        # Airbus
+        'A320': 'a320', 'A19N': 'a320', 'A20N': 'a320', 'A21N': 'a320',
+        'A318': 'a320', 'A319': 'a320', 'A321': 'a320',
+        'A330': 'a330', 'A332': 'a330', 'A333': 'a330', 'A338': 'a330', 'A339': 'a330',
+        'A340': 'a340', 'A342': 'a340', 'A343': 'a340', 'A345': 'a340', 'A346': 'a340',
+        'A380': 'a380', 'A388': 'a380',
+        # Boeing
+        'B737': 'b737', 'B738': 'b737', 'B739': 'b737', 'B37M': 'b737', 'B38M': 'b737',
+        'B731': 'b737', 'B732': 'b737', 'B733': 'b737', 'B734': 'b737', 'B735': 'b737',
+        'B736': 'b737', 'B39M': 'b737', 'B3XM': 'b737',
+        'B747': 'b747', 'B741': 'b747', 'B742': 'b747', 'B743': 'b747', 'B744': 'b747',
+        'B748': 'b747', 'B74R': 'b747', 'B74S': 'b747',
+        'B767': 'b767', 'B762': 'b767', 'B763': 'b767', 'B764': 'b767',
+        'B777': 'b777', 'B772': 'b777', 'B773': 'b777', 'B77L': 'b777', 'B77W': 'b777',
+        'B787': 'b787', 'B788': 'b787', 'B789': 'b787', 'B78X': 'b787',
+        # Business jets
+        'LJ24': 'learjet', 'LJ25': 'learjet', 'LJ31': 'learjet', 'LJ35': 'learjet',
+        'LJ40': 'learjet', 'LJ45': 'learjet', 'LJ55': 'learjet', 'LJ60': 'learjet',
+        'GLF4': 'glf5', 'GLF5': 'glf5', 'GLF6': 'glf5', 'GLEX': 'glf5',
+        'G150': 'glf5', 'G200': 'glf5', 'G250': 'glf5', 'G280': 'glf5',
+        'G450': 'glf5', 'G500': 'glf5', 'G550': 'glf5', 'G650': 'glf5',
+        'FA7X': 'fa7x', 'FA8X': 'fa7x', 'FA10': 'fa7x', 'FA20': 'fa7x', 'FA50': 'fa7x',
+        # Regional jets
+        'CRJ1': 'crjx', 'CRJ2': 'crjx', 'CRJ7': 'crjx', 'CRJ9': 'crjx', 'CRJX': 'crjx',
+        'E170': 'erj', 'E175': 'erj', 'E75L': 'erj', 'E75S': 'erj',
+        'E190': 'e195', 'E195': 'e195', 'E19X': 'e195', 'E290': 'e195', 'E295': 'e195',
+        # Turboprops
+        'DH8A': 'dh8a', 'DH8B': 'dh8a', 'DH8C': 'dh8a', 'DH8D': 'dh8a',
+        'DHC6': 'dh8a', 'DHC7': 'dh8a', 'DHC8': 'dh8a',
+        'Q100': 'dh8a', 'Q200': 'dh8a', 'Q300': 'dh8a', 'Q400': 'dh8a',
+        # Other
+        'MD11': 'md11', 'DC10': 'md11',
+        'F100': 'f100', 'F70': 'f100',
+        'C130': 'c130',
+        'C152': 'cessna', 'C162': 'cessna', 'C172': 'cessna', 'C182': 'cessna',
+        'C206': 'cessna', 'C208': 'cessna', 'C210': 'cessna',
+        # Fighters (generic military icons)
+        'F5': 'f5', 'F11': 'f11', 'F15': 'f15',
+    }
+    
+    if aircraft_type in specific_icons:
+        return f"adsb_icons/{specific_icons[aircraft_type]}"
+    
+    # Category-based fallback icons
     # Helicopter
-    if aircraft_type in ['H25B', 'H25C', 'H60', 'EC35', 'EC45', 'AS50', 'AS55', 'AS65', 'B06', 'B407', 'B412', 'B429', 'B505', 'R22', 'R44', 'R66', 'S76', 'EC30', 'EC55', 'EC75', 'H135', 'H145', 'H175', 'AW09', 'AW39', 'AW69', 'AW89', 'AW09', 'AW19', 'MD11', 'MD50', 'MD60', 'MD90']:
-        return 'helicopter'
+    if aircraft_type in ['H25B', 'H25C', 'H60', 'EC35', 'EC45', 'AS50', 'AS55', 'AS65', 'B06', 'B407', 'B412', 'B429', 'B505', 'R22', 'R44', 'R66', 'S76', 'EC30', 'EC55', 'EC75', 'H135', 'H145', 'H175', 'AW09', 'AW39', 'AW69', 'AW89', 'AW19', 'MD50', 'MD60', 'MD90']:
+        return 'adsb_icons/c0'  # Helicopter category
     
     # Widebody jets (twin-aisle)
-    if aircraft_type in ['A332', 'A333', 'A338', 'A339', 'A342', 'A343', 'A345', 'A346', 'A359', 'A35K', 'A388', 'A3ST', 'B741', 'B742', 'B743', 'B744', 'B748', 'B74R', 'B74S', 'B752', 'B753', 'B762', 'B763', 'B764', 'B772', 'B773', 'B77L', 'B77W', 'B788', 'B789', 'B78X', 'IL96', 'DC10', 'MD11', 'L101', 'AN124', 'AN225', 'B744', 'A380']:
-        return 'widebody'
+    if aircraft_type in ['A350', 'A359', 'A35K', 'A3ST', 'B752', 'B753', 'IL96', 'L101', 'AN124', 'AN225']:
+        return 'adsb_icons/a6'  # Widebody category
     
     # Turboprop
-    if aircraft_type in ['AT43', 'AT44', 'AT45', 'AT46', 'AT72', 'AT73', 'AT75', 'AT76', 'DH8A', 'DH8B', 'DH8C', 'DH8D', 'DHC6', 'DHC7', 'DHC8', 'E120', 'SF34', 'SH33', 'SH36', 'IL18', 'AN12', 'AN24', 'AN26', 'C130', 'P3', 'Q100', 'Q200', 'Q300', 'Q400', 'BE20', 'PC12', 'TBM7', 'TBM8', 'TBM9']:
-        return 'turboprop'
+    if aircraft_type in ['AT43', 'AT44', 'AT45', 'AT46', 'AT72', 'AT73', 'AT75', 'AT76', 'E120', 'SF34', 'SH33', 'SH36', 'IL18', 'AN12', 'AN24', 'AN26', 'P3', 'BE20', 'PC12', 'TBM7', 'TBM8', 'TBM9']:
+        return 'adsb_icons/a1'  # Turboprop category
     
     # Business jets
-    if aircraft_type in ['C25A', 'C25B', 'C25C', 'C25M', 'C500', 'C510', 'C525', 'C550', 'C551', 'C56X', 'C650', 'C680', 'C700', 'C750', 'CL30', 'CL35', 'CL60', 'E35L', 'E50P', 'E55P', 'E545', 'E550', 'F2TH', 'F900', 'FA10', 'FA20', 'FA50', 'FA7X', 'FA8X', 'G150', 'G200', 'G250', 'G280', 'G450', 'G500', 'G550', 'G650', 'GLEX', 'GLF4', 'GLF5', 'GLF6', 'H25A', 'H25B', 'LJ24', 'LJ25', 'LJ31', 'LJ35', 'LJ40', 'LJ45', 'LJ55', 'LJ60', 'PC24', 'PRM1', 'BE40', 'BE9L']:
-        return 'business'
+    if aircraft_type in ['C25A', 'C25B', 'C25C', 'C25M', 'C500', 'C510', 'C525', 'C550', 'C551', 'C56X', 'C650', 'C680', 'C700', 'C750', 'CL30', 'CL35', 'CL60', 'E35L', 'E50P', 'E55P', 'E545', 'E550', 'F2TH', 'F900', 'H25A', 'PC24', 'PRM1', 'BE40', 'BE9L']:
+        return 'adsb_icons/a2'  # Business jet category
     
     # Piston / General Aviation
-    if aircraft_type in ['C152', 'C162', 'C172', 'C182', 'C206', 'C208', 'C210', 'P28A', 'P28B', 'P28R', 'P28T', 'PA28', 'PA31', 'PA34', 'PA44', 'PA46', 'SR20', 'SR22', 'BE58', 'BE36', 'BE95', 'C340', 'C402', 'C414', 'C421', 'P68', 'DA40', 'DA42', 'DA62', 'PA18', 'PA22', 'ULAC', 'UHEL']:
-        return 'piston'
+    if aircraft_type in ['P28A', 'P28B', 'P28R', 'P28T', 'PA28', 'PA31', 'PA34', 'PA44', 'PA46', 'SR20', 'SR22', 'BE58', 'BE36', 'BE95', 'C340', 'C402', 'C414', 'C421', 'P68', 'DA40', 'DA42', 'DA62', 'PA18', 'PA22', 'ULAC']:
+        return 'adsb_icons/cessna'  # GA category
     
-    # Narrowbody jets (single-aisle) - default for most commercial jets
-    if aircraft_type in ['A318', 'A319', 'A320', 'A321', 'A19N', 'A20N', 'A21N', 'B731', 'B732', 'B733', 'B734', 'B735', 'B736', 'B737', 'B738', 'B739', 'B37M', 'B38M', 'B39M', 'B3XM', 'B712', 'B722', 'B732', 'E170', 'E175', 'E190', 'E195', 'E290', 'E295', 'E2', 'E75L', 'E75S', 'E195', 'E19X', 'E290', 'CRJ1', 'CRJ2', 'CRJ7', 'CRJ9', 'CRJX', 'C919', 'DC9', 'MD81', 'MD82', 'MD83', 'MD87', 'MD88', 'MD90', 'B461', 'B462', 'B463', 'F70', 'F100', 'RJ70', 'RJ85', 'RJ1H', 'A310', 'B703', 'B707', 'B720', 'B721', 'CV88', 'SU95']:
-        return 'narrowbody'
+    # Regional jets not matched above
+    if aircraft_type in ['RJ70', 'RJ85', 'RJ1H']:
+        return 'adsb_icons/a3'  # Regional jet category
+    
+    # Military jets
+    if aircraft_type.startswith('F') or aircraft_type.startswith('MIG') or aircraft_type.startswith('SU'):
+        return 'adsb_icons/b4'  # Military category
+    
+    # Narrowbody jets (default for commercial aircraft)
+    if aircraft_type.startswith('A') or aircraft_type.startswith('B') or aircraft_type.startswith('E') or 'MD8' in aircraft_type or 'DC9' in aircraft_type or 'C919' in aircraft_type or 'SU95' in aircraft_type:
+        return 'adsb_icons/a5'  # Narrowbody category
     
     # Default fallback
-    return 'narrowbody' if any(char.isdigit() for char in aircraft_type) else 'unknown'
+    return 'adsb_icons/a0'
 
 
 def load_dashboard_config():
