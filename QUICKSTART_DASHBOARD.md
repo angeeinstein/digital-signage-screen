@@ -21,6 +21,8 @@ curl -sSL https://raw.githubusercontent.com/angeeinstein/digital-signage-screen/
    - Click "Sign Up" → Create free account
    - Navigate to "API keys" → Copy your key
    - Paste in dashboard admin → Weather Settings
+   - Click "🧪 Test API" to verify it works
+   - Save configuration
 
 4. **Setup Lecture Timetable**:
    - Click "Add Lecture"

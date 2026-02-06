@@ -115,6 +115,47 @@
             color: white;
         }
         
+        .btn-info {
+            background: #17a2b8;
+            color: white;
+            padding: 8px 15px;
+            font-size: 14px;
+        }
+        
+        .btn-small {
+            padding: 8px 15px;
+            font-size: 14px;
+        }
+        
+        .test-result {
+            margin-top: 10px;
+            padding: 10px;
+            border-radius: 5px;
+            display: none;
+        }
+        
+        .test-result.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .test-result.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        
+        .input-with-button {
+            display: flex;
+            gap: 10px;
+            align-items: flex-start;
+        }
+        
+        .input-with-button input {
+            flex: 1;
+        }
+        
         .grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
@@ -221,8 +262,12 @@
             </div>
             <div class="form-group">
                 <label for="weatherApiKey">OpenWeatherMap API Key</label>
-                <input type="text" id="weatherApiKey" placeholder="Get free API key from openweathermap.org">
+                <div class="input-with-button">
+                    <input type="text" id="weatherApiKey" placeholder="Get free API key from openweathermap.org">
+                    <button class="btn btn-info btn-small" onclick="testWeatherAPI()">🧪 Test API</button>
+                </div>
                 <div class="help-text">Sign up at <a href="https://openweathermap.org/api" target="_blank">openweathermap.org/api</a> for a free API key</div>
+                <div class="test-result" id="weatherTestResult"></div>
             </div>
         </div>
         
@@ -235,8 +280,12 @@
             </div>
             <div class="form-group">
                 <label for="transportApiUrl">API URL</label>
-                <input type="text" id="transportApiUrl" placeholder="Transport API endpoint">
+                <div class="input-with-button">
+                    <input type="text" id="transportApiUrl" placeholder="Transport API endpoint">
+                    <button class="btn btn-info btn-small" onclick="testTransportAPI()">🧪 Test API</button>
+                </div>
                 <div class="help-text">Provide the API details when ready</div>
+                <div class="test-result" id="transportTestResult"></div>
             </div>
             <div class="form-group">
                 <label for="transportStopId">Stop ID</label>
@@ -425,6 +474,75 @@
             setTimeout(() => {
                 alert.style.display = 'none';
             }, 5000);
+        }
+        
+        // Test weather API
+        async function testWeatherAPI() {
+            const apiKey = document.getElementById('weatherApiKey').value;
+            const lat = parseFloat(document.getElementById('latitude').value) || 50.0;
+            const lon = parseFloat(document.getElementById('longitude').value) || 8.0;
+            const resultDiv = document.getElementById('weatherTestResult');
+            
+            if (!apiKey) {
+                resultDiv.className = 'test-result error';
+                resultDiv.textContent = '❌ Please enter an API key first';
+                resultDiv.style.display = 'block';
+                return;
+            }
+            
+            resultDiv.className = 'test-result';
+            resultDiv.textContent = '⏳ Testing API...';
+            resultDiv.style.display = 'block';
+            
+            try {
+                const response = await fetch(`/api/test/weather?api_key=${encodeURIComponent(apiKey)}&lat=${lat}&lon=${lon}`);
+                const data = await response.json();
+                
+                if (data.success) {
+                    resultDiv.className = 'test-result success';
+                    resultDiv.textContent = `✅ API working! Temperature: ${data.temp}°C, ${data.description}`;
+                } else {
+                    resultDiv.className = 'test-result error';
+                    resultDiv.textContent = `❌ API Error: ${data.message}`;
+                }
+            } catch (error) {
+                resultDiv.className = 'test-result error';
+                resultDiv.textContent = `❌ Connection error: ${error.message}`;
+            }
+        }
+        
+        // Test transport API
+        async function testTransportAPI() {
+            const apiUrl = document.getElementById('transportApiUrl').value;
+            const stopId = document.getElementById('transportStopId').value;
+            const resultDiv = document.getElementById('transportTestResult');
+            
+            if (!apiUrl) {
+                resultDiv.className = 'test-result error';
+                resultDiv.textContent = '❌ Please enter API URL first';
+                resultDiv.style.display = 'block';
+                return;
+            }
+            
+            resultDiv.className = 'test-result';
+            resultDiv.textContent = '⏳ Testing API...';
+            resultDiv.style.display = 'block';
+            
+            try {
+                const response = await fetch(`/api/test/transport?api_url=${encodeURIComponent(apiUrl)}&stop_id=${encodeURIComponent(stopId)}`);
+                const data = await response.json();
+                
+                if (data.success) {
+                    resultDiv.className = 'test-result success';
+                    resultDiv.textContent = `✅ API working! Response received successfully.`;
+                } else {
+                    resultDiv.className = 'test-result error';
+                    resultDiv.textContent = `❌ API Error: ${data.message}`;
+                }
+            } catch (error) {
+                resultDiv.className = 'test-result error';
+                resultDiv.textContent = `❌ Connection error: ${error.message}`;
+            }
         }
         
         // Initialize

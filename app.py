@@ -238,6 +238,72 @@ def get_timetable():
         return jsonify({'success': False, 'message': str(e)}), 500
 
 
+@app.route('/api/test/weather')
+def test_weather_api():
+    """Test weather API with provided key"""
+    try:
+        api_key = request.args.get('api_key', '')
+        lat = float(request.args.get('lat', 50.0))
+        lon = float(request.args.get('lon', 8.0))
+        
+        if not api_key:
+            return jsonify({'success': False, 'message': 'No API key provided'}), 400
+        
+        url = f"https://api.openweathermap.org/data/2.5/weather?lat={lat}&lon={lon}&appid={api_key}&units=metric"
+        response = requests.get(url, timeout=10)
+        
+        if response.status_code == 200:
+            data = response.json()
+            return jsonify({
+                'success': True,
+                'temp': round(data['main']['temp'], 1),
+                'description': data['weather'][0]['description'].capitalize(),
+                'location': data.get('name', 'Unknown')
+            })
+        elif response.status_code == 401:
+            return jsonify({'success': False, 'message': 'Invalid API key. Check your key at openweathermap.org'}), 401
+        elif response.status_code == 429:
+            return jsonify({'success': False, 'message': 'API rate limit exceeded. Wait a minute and try again'}), 429
+        else:
+            error_data = response.json()
+            return jsonify({'success': False, 'message': error_data.get('message', 'API request failed')}), response.status_code
+            
+    except requests.exceptions.Timeout:
+        return jsonify({'success': False, 'message': 'Request timeout. Check your internet connection'}), 500
+    except requests.exceptions.ConnectionError:
+        return jsonify({'success': False, 'message': 'Connection error. Check your internet connection'}), 500
+    except Exception as e:
+        logger.error(f"Error testing weather API: {e}")
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+
+@app.route('/api/test/transport')
+def test_transport_api():
+    """Test transport API"""
+    try:
+        api_url = request.args.get('api_url', '')
+        stop_id = request.args.get('stop_id', '')
+        
+        if not api_url:
+            return jsonify({'success': False, 'message': 'No API URL provided'}), 400
+        
+        # This is a placeholder - will need to be customized based on actual API
+        response = requests.get(api_url, timeout=10)
+        
+        if response.status_code == 200:
+            return jsonify({'success': True, 'message': 'API accessible'})
+        else:
+            return jsonify({'success': False, 'message': f'HTTP {response.status_code}'}), response.status_code
+            
+    except requests.exceptions.Timeout:
+        return jsonify({'success': False, 'message': 'Request timeout'}), 500
+    except requests.exceptions.ConnectionError:
+        return jsonify({'success': False, 'message': 'Connection error'}), 500
+    except Exception as e:
+        logger.error(f"Error testing transport API: {e}")
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+
 @app.errorhandler(404)
 def not_found(error):
     """Handle 404 errors"""
