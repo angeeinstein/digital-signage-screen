@@ -48,23 +48,10 @@ DEFAULT_DASHBOARD_CONFIG = {
     },
     'timetable': {
         'enabled': True,
-        'use_api': False,  # Set to True when using external API
+        'use_api': True,  # Always use API
         'api_url': '',  # URL for timetable API endpoint
         'api_key': '',  # API key if required
-        'lectures': [
-            {
-                'year': 'Year 1',
-                'time': '09:00',
-                'name': 'Flight Principles',
-                'room': 'A101'
-            },
-            {
-                'year': 'Year 2',
-                'time': '10:30',
-                'name': 'Navigation',
-                'room': 'A203'
-            }
-        ]
+        'lectures': []  # Not used anymore - API only
     }
 }
 
@@ -280,7 +267,7 @@ def get_nearest_flights():
 
 @app.route('/api/dashboard/timetable')
 def get_timetable():
-    """Get lecture timetable"""
+    """Get lecture timetable from external API"""
     try:
         config = load_dashboard_config()
         timetable_config = config.get('timetable', {})
@@ -288,68 +275,34 @@ def get_timetable():
         if not timetable_config.get('enabled', True):
             return jsonify({'success': True, 'lectures': []})
         
-        # Check if using external API
-        if timetable_config.get('use_api', False):
-            api_url = timetable_config.get('api_url', '').strip()
-            api_key = timetable_config.get('api_key', '').strip()
-            
-            if not api_url:
-                return jsonify({'success': False, 'message': 'Timetable API URL not configured'}), 400
-            
-            # Fetch from external API
-            headers = {}
-            if api_key:
-                # Adjust header key based on your API's requirements
-                headers['Authorization'] = f'Bearer {api_key}'
-            
-            response = requests.get(api_url, headers=headers, timeout=10)
-            response.raise_for_status()
-            
-            api_data = response.json()
-            
-            # Assuming API returns lectures in format: {'lectures': [...]}
-            # Adjust this based on your actual API response structure
-            lectures = api_data.get('lectures', api_data if isinstance(api_data, list) else [])
-            
-            return jsonify({'success': True, 'lectures': lectures})
+        api_url = timetable_config.get('api_url', '').strip()
+        api_key = timetable_config.get('api_key', '').strip()
         
-        # Use local/manual timetable
-        # Get current day of week
-        now = datetime.now()
-        weekday = now.strftime('%A')
+        if not api_url:
+            return jsonify({'success': True, 'lectures': [], 'message': 'No API configured yet'}), 200
         
-        # Filter lectures for today and get next ones
-        lectures = timetable_config.get('lectures', [])
-        current_time = now.hour * 60 + now.minute
+        # Fetch from external API
+        headers = {}
+        if api_key:
+            headers['Authorization'] = f'Bearer {api_key}'
         
-        # Filter lectures that are today or coming soon
-        upcoming_lectures = []
-        for lecture in lectures:
-            # Check if lecture has a day field, if not assume it's for all days
-            if 'day' in lecture and lecture['day'] != weekday:
-                continue
-                
-            time_parts = lecture['time'].split(':')
-            lecture_time = int(time_parts[0]) * 60 + int(time_parts[1])
-            
-            # Show lectures that are within the next 2 hours or currently happening
-            if lecture_time >= current_time - 30 and lecture_time <= current_time + 120:
-                upcoming_lectures.append(lecture)
+        response = requests.get(api_url, headers=headers, timeout=10)
+        response.raise_for_status()
         
-        # Sort by time
-        upcoming_lectures.sort(key=lambda x: x['time'])
+        api_data = response.json()
         
-        # Limit to next 8 lectures
-        upcoming_lectures = upcoming_lectures[:8]
+        # Assuming API returns lectures in format: {'lectures': [...]}
+        # Adjust this based on your actual API response structure
+        lectures = api_data.get('lectures', api_data if isinstance(api_data, list) else [])
         
-        return jsonify({'success': True, 'lectures': upcoming_lectures})
+        return jsonify({'success': True, 'lectures': lectures})
         
     except requests.exceptions.RequestException as e:
         logger.error(f"Error fetching timetable from API: {e}")
-        return jsonify({'success': False, 'message': f'API request failed: {str(e)}'}), 500
+        return jsonify({'success': False, 'lectures': [], 'message': f'API error: {str(e)}'}), 200
     except Exception as e:
         logger.error(f"Error fetching timetable: {e}")
-        return jsonify({'success': False, 'message': str(e)}), 500
+        return jsonify({'success': False, 'lectures': [], 'message': str(e)}), 200
 
 
 @app.route('/api/test/weather')

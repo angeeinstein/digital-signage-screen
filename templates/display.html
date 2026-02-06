@@ -155,7 +155,7 @@
             gap: 20px;
         }
         
-        .weather-temp {0;
+        .weather-temp {
             display: flex;
             justify-content: space-between;
             align-items: center;
@@ -165,10 +165,9 @@
             font-weight: bold;
             font-size: 18px;
             padding: 5px 10px;
-            border-radius: 0
+            border-radius: 0;
             grid-template-columns: 1fr 1fr;
             gap: 12px;
-            font-size: 18px;
         }
         
         .weather-detail {
@@ -190,7 +189,7 @@
         }
         
         .transport-item {
-            background: rgb05, 255, 255, 0.15);
+            background: rgba(105, 255, 255, 0.15);
             padding: 15px;
             border-radius: 8px;
             display: flex;
@@ -259,11 +258,6 @@
             opacity: 0.9;
         }
         
-            
-            <!-- Nearest Flights List -->
-            <div class="nearest-flights" id="nearest-flights">
-                <div style="font-size: 14px; opacity: 0.7;">Loading nearest flights...</div>
-            </div>
         /* Scrollbar styling */
         ::-webkit-scrollbar {
             width: 8px;
@@ -419,13 +413,6 @@
             loadWeather();
             loadTransport();
             loadTimetable();
-        }minimal UI - using mapOnly parameter
-            const lat = config.location?.lat || 50.0;
-            const lon = config.location?.lon || 8.0;
-            // Using minimal embed mode
-            iframe.src = `https://globe.adsbexchange.com/?lat=${lat}&lon=${lon}&zoom=8.5&enableLabels&extendedLabels=1&trackLabels&mapDim=0&hideSidebar&hideButtons&mapOnly`;
-            
-            // Load nearest flights
             loadNearestFlights();
         }
         

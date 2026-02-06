@@ -309,36 +309,25 @@
         
         <!-- Timetable Settings -->
         <div class="card">
-            <h2>📅 Lecture Timetable</h2>
+            <h2>📅 Lecture Timetable API</h2>
             <div class="form-group checkbox-group">
                 <input type="checkbox" id="timetableEnabled" checked>
                 <label for="timetableEnabled">Enable Timetable Display</label>
             </div>
             
-            <div class="form-group checkbox-group">
-                <input type="checkbox" id="timetableUseApi">
-                <label for="timetableUseApi">Use External Timetable API</label>
+            <div class="form-group">
+                <label for="timetableApiUrl">Timetable API URL</label>
+                <input type="text" id="timetableApiUrl" placeholder="https://api.example.com/timetable">
+                <div class="help-text">API should return JSON with lectures array</div>
             </div>
             
-            <div id="timetableApiSettings" style="display:none;">
-                <div class="form-group">
-                    <label for="timetableApiUrl">Timetable API URL</label>
-                    <input type="text" id="timetableApiUrl" placeholder="https://api.example.com/timetable">
-                </div>
-                
-                <div class="form-group">
-                    <label for="timetableApiKey">API Key (if required)</label>
-                    <input type="text" id="timetableApiKey" placeholder="Optional API key">
-                </div>
-                
-                <button class="btn btn-secondary" onclick="testTimetableAPI()">🧪 Test Timetable API</button>
-                <div id="timetableApiTestResult"></div>
+            <div class="form-group">
+                <label for="timetableApiKey">API Key (if required)</label>
+                <input type="text" id="timetableApiKey" placeholder="Optional API key">
             </div>
             
-            <div id="manualTimetableSettings">
-                <div id="lecturesList"></div>
-                <button class="btn btn-success" onclick="addLecture()">+ Add Lecture</button>
-            </div>
+            <button class="btn btn-secondary" onclick="testTimetableAPI()">🧪 Test Timetable API</button>
+            <div id="timetableApiTestResult"></div>
         </div>
         
         <!-- Save Button -->
@@ -352,8 +341,6 @@
     </div>
     
     <script>
-        let lectures = [];
-        
         // Load configuration on page load
         async function loadConfig() {
             try {
@@ -379,29 +366,13 @@
                     
                     // Timetable
                     document.getElementById('timetableEnabled').checked = config.timetable?.enabled !== false;
-                    document.getElementById('timetableUseApi').checked = config.timetable?.use_api || false;
                     document.getElementById('timetableApiUrl').value = config.timetable?.api_url || '';
                     document.getElementById('timetableApiKey').value = config.timetable?.api_key || '';
-                    lectures = config.timetable?.lectures || [];
-                    renderLectures();
-                    toggleTimetableApiSettings();
                 }
             } catch (error) {
                 showError('Failed to load configuration: ' + error.message);
             }
         }
-        
-        // Toggle timetable API settings visibility
-        function toggleTimetableApiSettings() {
-            const useApi = document.getElementById('timetableUseApi').checked;
-            document.getElementById('timetableApiSettings').style.display = useApi ? 'block' : 'none';
-            document.getElementById('manualTimetableSettings').style.display = useApi ? 'none' : 'block';
-        }
-        
-        // Event listener for timetable API toggle
-        document.addEventListener('DOMContentLoaded', function() {
-            document.getElementById('timetableUseApi').addEventListener('change', toggleTimetableApiSettings);
-        });
         
         // Save configuration
         async function saveConfig() {
@@ -423,10 +394,10 @@
                     },
                     timetable: {
                         enabled: document.getElementById('timetableEnabled').checked,
-                        use_api: document.getElementById('timetableUseApi').checked,
+                        use_api: true,  // Always use API now
                         api_url: document.getElementById('timetableApiUrl').value,
                         api_key: document.getElementById('timetableApiKey').value,
-                        lectures: lectures
+                        lectures: []  // Empty for API mode
                     }
                 };
                 
@@ -451,65 +422,6 @@
         }
         
         // Add new lecture
-        function addLecture() {
-            lectures.push({
-                year: 'Year 1',
-                time: '09:00',
-                name: 'New Lecture',
-                room: 'A101',
-                day: 'Monday'
-            });
-            renderLectures();
-        }
-        
-        // Remove lecture
-        function removeLecture(index) {
-            lectures.splice(index, 1);
-            renderLectures();
-        }
-        
-        // Update lecture field
-        function updateLecture(index, field, value) {
-            lectures[index][field] = value;
-        }
-        
-        // Render lectures list
-        function renderLectures() {
-            const container = document.getElementById('lecturesList');
-            
-            if (lectures.length === 0) {
-                container.innerHTML = '<p style="color: #666; text-align: center; padding: 20px;">No lectures added yet. Click "Add Lecture" to create one.</p>';
-                return;
-            }
-            
-            container.innerHTML = lectures.map((lecture, index) => `
-                <div class="lecture-item">
-                    <div class="grid">
-                        <input type="text" placeholder="Year Group" value="${lecture.year}" 
-                               onchange="updateLecture(${index}, 'year', this.value)">
-                        <select onchange="updateLecture(${index}, 'day', this.value)">
-                            <option value="Monday" ${lecture.day === 'Monday' ? 'selected' : ''}>Monday</option>
-                            <option value="Tuesday" ${lecture.day === 'Tuesday' ? 'selected' : ''}>Tuesday</option>
-                            <option value="Wednesday" ${lecture.day === 'Wednesday' ? 'selected' : ''}>Wednesday</option>
-                            <option value="Thursday" ${lecture.day === 'Thursday' ? 'selected' : ''}>Thursday</option>
-                            <option value="Friday" ${lecture.day === 'Friday' ? 'selected' : ''}>Friday</option>
-                            <option value="Saturday" ${lecture.day === 'Saturday' ? 'selected' : ''}>Saturday</option>
-                            <option value="Sunday" ${lecture.day === 'Sunday' ? 'selected' : ''}>Sunday</option>
-                        </select>
-                        <input type="time" value="${lecture.time}" 
-                               onchange="updateLecture(${index}, 'time', this.value)">
-                    </div>
-                    <input type="text" placeholder="Lecture Name" value="${lecture.name}" 
-                           onchange="updateLecture(${index}, 'name', this.value)">
-                    <div style="display: flex; gap: 10px;">
-                        <input type="text" placeholder="Room" value="${lecture.room}" 
-                               onchange="updateLecture(${index}, 'room', this.value)" style="flex: 1;">
-                        <button class="btn btn-danger" onclick="removeLecture(${index})">Remove</button>
-                    </div>
-                </div>
-            `).join('');
-        }
-        
         // Show success message
         function showSuccess(message) {
             const alert = document.getElementById('successAlert');
