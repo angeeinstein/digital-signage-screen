@@ -641,7 +641,7 @@ def get_route_from_cache(callsign, cache, cache_days=7):
     return '', '', False
 
 
-def update_route_cache(callsign, from_airport, to_airport, cache, not_found=False):
+def update_route_cache(callsign, from_airport, to_airport, cache, not_found=False, tried_airlabs=False):
     """Update the route cache with new information"""
     if not callsign:
         return
@@ -650,7 +650,8 @@ def update_route_cache(callsign, from_airport, to_airport, cache, not_found=Fals
         'from': from_airport or '',
         'to': to_airport or '',
         'last_seen': datetime.now().isoformat(),
-        'not_found': not_found  # Mark if route lookup failed (404)
+        'not_found': not_found,  # Mark if route lookup failed (404)
+        'tried_airlabs': tried_airlabs  # Track if we tried AirLabs API
     }
     save_flight_routes_cache(cache)
 
@@ -1035,23 +1036,28 @@ def get_flights_airplaneslive(config, flight_config):
             
             # Check if this aircraft was previously marked as not found
             skip_lookup = False
+            tried_airlabs = False
             if callsign in route_cache:
                 cached = route_cache[callsign]
+                tried_airlabs = cached.get('tried_airlabs', False)
                 if cached.get('not_found', False):
-                    # Skip lookup if not_found was set within last 24 hours
+                    # Skip lookup if not_found was set within last 24 hours AND we already tried AirLabs
                     try:
                         last_seen = datetime.fromisoformat(cached['last_seen'])
                         hours_since = (datetime.now() - last_seen).total_seconds() / 3600
-                        if hours_since < 24:
+                        if hours_since < 24 and tried_airlabs:
                             skip_lookup = True
-                            logger.debug(f"Skipping OpenSky lookup for {callsign} (not found {hours_since:.1f}h ago)")
+                            logger.debug(f"Skipping lookup for {callsign} (not found {hours_since:.1f}h ago, tried all sources)")
+                        elif hours_since < 24 and not tried_airlabs:
+                            # OpenSky failed but we haven't tried AirLabs yet
+                            logger.debug(f"Will retry {callsign} with AirLabs (OpenSky failed {hours_since:.1f}h ago)")
                     except:
                         pass
             
             # If not in cache or expired, try to fetch from OpenSky
             icao24 = aircraft.get('hex', '').lower()
             if not skip_lookup and ((not from_airport and not to_airport) or not is_valid):
-                if icao24 and opensky_config.get('enabled', True):
+                if icao24 and opensky_config.get('enabled', True) and not tried_airlabs:
                     logger.info(f"Fetching route for {callsign} (ICAO24: {icao24}) from OpenSky...")
                     # Fetch from OpenSky in background (don't block)
                     opensky_from, opensky_to = fetch_route_from_opensky(icao24, config)
@@ -1070,11 +1076,25 @@ def get_flights_airplaneslive(config, flight_config):
                             to_airport = airlabs_to or to_airport
                             logger.info(f"AirLabs found route for {callsign}: {from_airport} → {to_airport}")
                             # Update cache with AirLabs result
-                            update_route_cache(callsign, from_airport, to_airport, route_cache, not_found=False)
+                            update_route_cache(callsign, from_airport, to_airport, route_cache, not_found=False, tried_airlabs=True)
                         else:
                             logger.info(f"No route found for {callsign} in OpenSky or AirLabs")
                             # Cache the negative result to avoid retrying
-                            update_route_cache(callsign, '', '', route_cache, not_found=True)
+                            update_route_cache(callsign, '', '', route_cache, not_found=True, tried_airlabs=True)
+                elif not tried_airlabs:
+                    # Only try AirLabs if we haven't tried it before
+                    logger.info(f"Trying AirLabs directly for {callsign}...")
+                    airlabs_from, airlabs_to = fetch_route_from_airlabs(callsign, config)
+                    if airlabs_from or airlabs_to:
+                        from_airport = airlabs_from or from_airport
+                        to_airport = airlabs_to or to_airport
+                        logger.info(f"AirLabs found route for {callsign}: {from_airport} → {to_airport}")
+                        # Update cache with AirLabs result
+                        update_route_cache(callsign, from_airport, to_airport, route_cache, not_found=False, tried_airlabs=True)
+                    else:
+                        logger.debug(f"AirLabs: No route for {callsign}")
+                        # Cache negative result
+                        update_route_cache(callsign, '', '', route_cache, not_found=True, tried_airlabs=True)
                 else:
                     logger.debug(f"OpenSky lookup disabled or no ICAO24 for {callsign}")
             
