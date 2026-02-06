@@ -220,6 +220,10 @@ def get_trias_timestamp():
 
 def search_trias_stops(query, limit=20):
     """Search for transit stops using TRIAS API"""
+    # Register namespace prefixes for proper output
+    ET.register_namespace('', TRIAS_NAMESPACES['trias'])
+    ET.register_namespace('siri', TRIAS_NAMESPACES['siri'])
+    
     # Build XML using ElementTree for proper encoding
     trias = ET.Element('Trias', {
         'xmlns': TRIAS_NAMESPACES['trias'],
