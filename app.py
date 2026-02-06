@@ -861,7 +861,7 @@ def get_transport():
             return jsonify({'success': True, 'departures': []})
         
         # Get departures from TRIAS API
-        departures = get_trias_departures(stop_id, limit=5)
+        departures = get_trias_departures(stop_id, limit=8)
         
         return jsonify({'success': True, 'departures': departures})
         

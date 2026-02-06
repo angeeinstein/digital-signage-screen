@@ -233,13 +233,13 @@
         .transport-list {
             display: flex;
             flex-direction: column;
-            gap: 12px;
+            gap: 6px;
         }
         
         .transport-item {
             background: rgba(105, 255, 255, 0.15);
-            padding: 15px;
-            border-radius: 8px;
+            padding: 8px 12px;
+            border-radius: 6px;
             display: flex;
             justify-content: space-between;
             align-items: center;
@@ -247,15 +247,39 @@
         
         .transport-line {
             font-weight: bold;
-            font-size: 18px;
-            padding: 5px 10px;
-            border-radius: 5px;
+            font-size: 16px;
+            padding: 3px 8px;
+            border-radius: 4px;
             background: rgba(255, 255, 255, 0.2);
+            display: inline-block;
+        }
+        
+        .transport-direction {
+            font-size: 13px;
+            margin-top: 3px;
+            opacity: 0.9;
         }
         
         .transport-time {
-            font-size: 20px;
+            font-size: 17px;
             font-weight: bold;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        
+        .realtime-indicator {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #ff4444;
+            display: inline-block;
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
         }
         
         /* Timetable */
@@ -591,13 +615,14 @@
                     const list = document.getElementById('transport-list');
                     list.innerHTML = data.departures.map(dep => `
                         <div class="transport-item">
-                            <div>
-                                <div class="transport-line">
-                                    ${dep.line}
-                                </div>
-                                <div style="font-size: 14px; margin-top: 5px;">${dep.direction}</div>
+                            <div style="flex: 1;">
+                                <div class="transport-line">${dep.line}</div>
+                                <div class="transport-direction">${dep.direction}</div>
                             </div>
-                            <div class="transport-time">${dep.is_realtime ? '🔴 ' : ''}${dep.time}</div>
+                            <div class="transport-time">
+                                ${dep.is_realtime ? '<span class="realtime-indicator"></span>' : ''}
+                                ${dep.time}
+                            </div>
                         </div>
                     `).join('');
                 }
