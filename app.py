@@ -776,13 +776,31 @@ def fetch_route_from_airlabs(flight_number, config):
         # Clean flight number (remove spaces, convert to uppercase)
         clean_flight = flight_number.strip().replace(' ', '').upper()
         
-        logger.info(f"AirLabs: Querying route for {clean_flight}")
+        # Convert ICAO callsign to IATA flight number
+        # Map common ICAO 3-letter codes to IATA 2-letter codes
+        icao_to_iata = {
+            'DLH': 'LH', 'SWR': 'LX', 'AUA': 'OS', 'AFR': 'AF', 'KLM': 'KL',
+            'BAW': 'BA', 'RYR': 'FR', 'EZY': 'U2', 'WZZ': 'W6', 'EWG': 'EW',
+            'THY': 'TK', 'UAE': 'EK', 'QTR': 'QR', 'SAS': 'SK', 'FIN': 'AY',
+            'IBE': 'IB', 'TAP': 'TP', 'AEE': 'A3', 'AAL': 'AA', 'DAL': 'DL',
+            'UAL': 'UA', 'SWA': 'WN', 'ASL': 'JU', 'VIR': 'VS', 'OCN': 'OCEANAIRLINES'
+        }
+        
+        iata_flight = clean_flight
+        if len(clean_flight) >= 3 and clean_flight[:3].isalpha():
+            icao_code = clean_flight[:3]
+            if icao_code in icao_to_iata:
+                # Replace ICAO code with IATA code
+                iata_flight = icao_to_iata[icao_code] + clean_flight[3:]
+                logger.info(f"AirLabs: Converted {clean_flight} to {iata_flight}")
+        
+        logger.info(f"AirLabs: Querying route for {iata_flight}")
         
         # AirLabs routes endpoint
         url = f"https://airlabs.co/api/v9/routes"
         params = {
             'api_key': api_key,
-            'flight_iata': clean_flight  # Try IATA format first
+            'flight_iata': iata_flight  # Try IATA format
         }
         
         response = requests.get(url, params=params, timeout=10)
