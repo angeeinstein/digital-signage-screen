@@ -758,6 +758,52 @@ def fetch_route_from_opensky(icao24, config):
         return None, None
 
 
+def fetch_route_from_airlabs(flight_number, config):
+    """Fetch flight route from AirLabs API using flight number"""
+    try:
+        airlabs_config = config.get('airlabs', {})
+        api_key = airlabs_config.get('api_key', '').strip()
+        
+        if not api_key:
+            return None, None
+        
+        # Clean flight number (remove spaces, convert to uppercase)
+        clean_flight = flight_number.strip().replace(' ', '').upper()
+        
+        # AirLabs routes endpoint
+        url = f"https://airlabs.co/api/v9/routes"
+        params = {
+            'api_key': api_key,
+            'flight_iata': clean_flight  # Try IATA format first
+        }
+        
+        response = requests.get(url, params=params, timeout=10)
+        
+        if response.status_code == 200:
+            data = response.json()
+            if data.get('response') and len(data['response']) > 0:
+                route = data['response'][0]
+                departure = route.get('dep_iata', '')
+                arrival = route.get('arr_iata', '')
+                
+                if departure or arrival:
+                    logger.info(f"AirLabs: Found route for {flight_number}: {departure} → {arrival}")
+                    return departure, arrival
+            else:
+                logger.debug(f"AirLabs: No route found for flight {flight_number}")
+        elif response.status_code == 429:
+            logger.warning("AirLabs API: Rate limit exceeded")
+        elif response.status_code == 401:
+            logger.warning("AirLabs API: Invalid API key")
+        else:
+            logger.debug(f"AirLabs API returned status {response.status_code}")
+        
+        return None, None
+    except Exception as e:
+        logger.error(f"Error fetching route from AirLabs: {e}")
+        return None, None
+
+
 @app.route('/')
 def index():
     """Main aviation dashboard display"""
@@ -1005,9 +1051,19 @@ def get_flights_airplaneslive(config, flight_config):
                         # Update cache with successful result
                         update_route_cache(callsign, from_airport, to_airport, route_cache, not_found=False)
                     else:
-                        logger.info(f"No route found for {callsign} ({icao24}) in OpenSky database")
-                        # Cache the negative result to avoid retrying
-                        update_route_cache(callsign, '', '', route_cache, not_found=True)
+                        # If OpenSky didn't find anything, try AirLabs as fallback
+                        logger.info(f"No route found in OpenSky for {callsign}, trying AirLabs...")
+                        airlabs_from, airlabs_to = fetch_route_from_airlabs(callsign, config)
+                        if airlabs_from or airlabs_to:
+                            from_airport = airlabs_from or from_airport
+                            to_airport = airlabs_to or to_airport
+                            logger.info(f"AirLabs found route for {callsign}: {from_airport} → {to_airport}")
+                            # Update cache with AirLabs result
+                            update_route_cache(callsign, from_airport, to_airport, route_cache, not_found=False)
+                        else:
+                            logger.info(f"No route found for {callsign} in OpenSky or AirLabs")
+                            # Cache the negative result to avoid retrying
+                            update_route_cache(callsign, '', '', route_cache, not_found=True)
                 else:
                     logger.debug(f"OpenSky lookup disabled or no ICAO24 for {callsign}")
             
@@ -1531,6 +1587,82 @@ def test_opensky_api():
         return jsonify({'success': False, 'message': 'Connection error. Check your internet connection.'}), 500
     except Exception as e:
         logger.error(f"Error testing OpenSky API: {e}")
+        return jsonify({'success': False, 'message': f'Error: {str(e)}'}), 500
+
+
+@app.route('/api/test/airlabs')
+def test_airlabs_api():
+    """Test AirLabs API with provided key"""
+    try:
+        api_key = request.args.get('api_key', '').strip()
+        
+        if not api_key:
+            return jsonify({
+                'success': False, 
+                'message': 'Please provide an API key'
+            }), 400
+        
+        # Test with a common route (LH400 Frankfurt-NYC)
+        test_flight = 'LH400'
+        url = f"https://airlabs.co/api/v9/routes"
+        params = {
+            'api_key': api_key,
+            'flight_iata': test_flight
+        }
+        
+        response = requests.get(url, params=params, timeout=10)
+        
+        logger.info(f"AirLabs test API - Status: {response.status_code}, Flight: {test_flight}")
+        
+        if response.status_code == 200:
+            data = response.json()
+            
+            if data and 'response' in data and len(data['response']) > 0:
+                route = data['response'][0]
+                dep_iata = route.get('dep_iata', 'N/A')
+                arr_iata = route.get('arr_iata', 'N/A')
+                
+                return jsonify({
+                    'success': True,
+                    'message': f'Connected successfully! Found route for {test_flight}: {dep_iata} → {arr_iata}',
+                })
+            else:
+                # API key is valid but no data for this flight
+                return jsonify({
+                    'success': True,
+                    'message': 'API key is valid! (No data for test flight, but authentication succeeded)'
+                })
+        
+        elif response.status_code == 401:
+            return jsonify({
+                'success': False,
+                'message': 'Invalid API key. Please check your AirLabs API key.'
+            }), 401
+        
+        elif response.status_code == 429:
+            return jsonify({
+                'success': False,
+                'message': 'Rate limit exceeded. Free tier: 1,000 requests/month.'
+            }), 429
+        
+        else:
+            try:
+                error_data = response.json()
+                error_msg = error_data.get('error', {}).get('message', str(error_data))
+            except:
+                error_msg = response.text
+            
+            return jsonify({
+                'success': False,
+                'message': f'API returned status {response.status_code}: {error_msg}'
+            }), response.status_code
+            
+    except requests.exceptions.Timeout:
+        return jsonify({'success': False, 'message': 'Request timeout. Check your internet connection.'}), 500
+    except requests.exceptions.ConnectionError:
+        return jsonify({'success': False, 'message': 'Connection error. Check your internet connection.'}), 500
+    except Exception as e:
+        logger.error(f"Error testing AirLabs API: {e}")
         return jsonify({'success': False, 'message': f'Error: {str(e)}'}), 500
 
 

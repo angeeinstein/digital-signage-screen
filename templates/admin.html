@@ -350,6 +350,35 @@
                     <div class="help-text">How many days to keep cached routes before refreshing (default: 7 days)</div>
                 </div>
             </div>
+            
+            <div class="form-group">
+                <h3>🛫 AirLabs - Route Discovery Fallback</h3>
+                <div class="form-group checkbox-group">
+                    <input type="checkbox" id="airlabsRouteEnabled" checked>
+                    <label for="airlabsRouteEnabled">Enable AirLabs route fallback</label>
+                </div>
+                <p class="help-text">
+                    AirLabs provides route data when OpenSky doesn't find results.<br>
+                    <strong>Free tier:</strong> 1,000 API calls/month (~33/day)<br>
+                    Only queries when OpenSky returns no route - maximizes coverage while conserving API quota.
+                </p>
+                
+                <div class="form-group">
+                    <label for="airlabsApiKey">AirLabs API Key</label>
+                    <div class="input-with-button">
+                        <input type="password" id="airlabsApiKey" placeholder="Enter your AirLabs API key">
+                        <button class="btn btn-info btn-small" onclick="testAirlabsAPI()">🧪 Test API</button>
+                    </div>
+                    <div class="help-text">
+                        <strong>To get API key:</strong><br>
+                        1. Sign up at <a href="https://airlabs.co/" target="_blank">airlabs.co</a><br>
+                        2. Go to <a href="https://airlabs.co/dashboard" target="_blank">Dashboard</a><br>
+                        3. Copy your API Key<br>
+                        <strong>Benefits:</strong> Fills gaps when OpenSky has no route data
+                    </div>
+                    <div class="test-result" id="airlabsTestResult"></div>
+                </div>
+            </div>
         </div>
         
         <!-- Transport Settings -->
@@ -457,6 +486,10 @@
                     document.getElementById('openskyClientSecret').value = config.opensky?.client_secret || '';
                     document.getElementById('cacheExpiry').value = config.opensky?.cache_days || 7;
                     
+                    // AirLabs Route
+                    document.getElementById('airlabsRouteEnabled').checked = config.airlabs_route?.enabled !== false;
+                    document.getElementById('airlabsApiKey').value = config.airlabs_route?.api_key || '';
+                    
                     // Transport
                     document.getElementById('transportEnabled').checked = config.transport?.enabled !== false;
                     document.getElementById('transportStopId').value = config.transport?.stop_id || '';
@@ -495,6 +528,10 @@
                         client_id: document.getElementById('openskyClientId').value,
                         client_secret: document.getElementById('openskyClientSecret').value,
                         cache_days: parseInt(document.getElementById('cacheExpiry').value) || 7
+                    },
+                    airlabs_route: {
+                        enabled: document.getElementById('airlabsRouteEnabled').checked,
+                        api_key: document.getElementById('airlabsApiKey').value
                     },
                     transport: {
                         enabled: document.getElementById('transportEnabled').checked,
@@ -694,6 +731,39 @@
                 if (data.success) {
                     resultDiv.className = 'test-result success';
                     resultDiv.innerHTML = `✅ <strong>API working!</strong><br>${data.message}<br>Credits: ${data.credits || 'N/A'}`;
+                } else {
+                    resultDiv.className = 'test-result error';
+                    resultDiv.innerHTML = `❌ ${data.message}`;
+                }
+            } catch (error) {
+                resultDiv.className = 'test-result error';
+                resultDiv.textContent = `❌ Connection error: ${error.message}`;
+            }
+        }
+        
+        // Test AirLabs API
+        async function testAirlabsAPI() {
+            const apiKey = document.getElementById('airlabsApiKey').value.trim();
+            const resultDiv = document.getElementById('airlabsTestResult');
+            
+            if (!apiKey) {
+                resultDiv.className = 'test-result error';
+                resultDiv.textContent = '❌ Please enter an API key';
+                resultDiv.style.display = 'block';
+                return;
+            }
+            
+            resultDiv.className = 'test-result';
+            resultDiv.innerHTML = '⏳ Testing API key...';
+            resultDiv.style.display = 'block';
+            
+            try {
+                const response = await fetch(`/api/test/airlabs?api_key=${encodeURIComponent(apiKey)}`);
+                const data = await response.json();
+                
+                if (data.success) {
+                    resultDiv.className = 'test-result success';
+                    resultDiv.innerHTML = `✅ <strong>API working!</strong><br>${data.message}`;
                 } else {
                     resultDiv.className = 'test-result error';
                     resultDiv.innerHTML = `❌ ${data.message}`;
