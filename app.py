@@ -256,33 +256,51 @@ def search_trias_stops(query, limit=20):
         stops_dict = {}  # Use dict to group by stop name
         
         for location in root.findall('.//trias:Location', TRIAS_NAMESPACES):
-            # Try StopPoint first
-            stop_ref_elem = location.find('.//trias:StopPointRef', TRIAS_NAMESPACES)
-            stop_name_elem = location.find('.//trias:StopPointName/trias:Text', TRIAS_NAMESPACES)
+            # Try to find StopPoint first, then StopPlace
+            stop_point = location.find('trias:StopPoint', TRIAS_NAMESPACES)
+            stop_place = location.find('trias:StopPlace', TRIAS_NAMESPACES)
             
-            # Try StopPlace if StopPoint not found
-            if stop_ref_elem is None:
-                stop_ref_elem = location.find('.//trias:StopPlaceRef', TRIAS_NAMESPACES)
-                stop_name_elem = location.find('.//trias:StopPlaceName/trias:Text', TRIAS_NAMESPACES)
+            stop_ref = None
+            stop_name = None
             
-            lon_elem = location.find('.//trias:Longitude', TRIAS_NAMESPACES)
-            lat_elem = location.find('.//trias:Latitude', TRIAS_NAMESPACES)
+            if stop_point is not None:
+                # This is a StopPoint (individual platform/stop)
+                stop_point_ref = stop_point.find('trias:StopPointRef', TRIAS_NAMESPACES)
+                if stop_point_ref is None:
+                    continue
+                stop_ref = stop_point_ref.text
+                stop_point_name = stop_point.find('trias:StopPointName/trias:Text', TRIAS_NAMESPACES)
+                stop_name = stop_point_name.text if stop_point_name is not None else None
+                
+            elif stop_place is not None:
+                # This is a StopPlace (stop area/group of platforms)
+                stop_place_ref = stop_place.find('trias:StopPlaceRef', TRIAS_NAMESPACES)
+                if stop_place_ref is None:
+                    continue
+                stop_ref = stop_place_ref.text
+                stop_place_name = stop_place.find('trias:StopPlaceName/trias:Text', TRIAS_NAMESPACES)
+                stop_name = stop_place_name.text if stop_place_name is not None else None
             
-            if stop_ref_elem is not None and stop_name_elem is not None:
-                stop_id = stop_ref_elem.text
-                stop_name = stop_name_elem.text
+            # Get coordinates
+            geo_position = location.find('trias:GeoPosition', TRIAS_NAMESPACES)
+            longitude = None
+            latitude = None
+            if geo_position is not None:
+                lon_elem = geo_position.find('trias:Longitude', TRIAS_NAMESPACES)
+                lat_elem = geo_position.find('trias:Latitude', TRIAS_NAMESPACES)
                 longitude = float(lon_elem.text) if lon_elem is not None else None
                 latitude = float(lat_elem.text) if lat_elem is not None else None
-                
+            
+            if stop_ref is not None and stop_name is not None:
                 # Group multiple platforms/variants of the same stop
                 if stop_name in stops_dict:
                     # Add this stop_id to the list of IDs for this stop
-                    if stop_id not in stops_dict[stop_name]['stop_ids']:
-                        stops_dict[stop_name]['stop_ids'].append(stop_id)
+                    if stop_ref not in stops_dict[stop_name]['stop_ids']:
+                        stops_dict[stop_name]['stop_ids'].append(stop_ref)
                 else:
                     stops_dict[stop_name] = {
-                        'stop_id': stop_id,  # Primary stop ID
-                        'stop_ids': [stop_id],  # All stop IDs (for multi-platform stops)
+                        'stop_id': stop_ref,  # Primary stop ID
+                        'stop_ids': [stop_ref],  # All stop IDs (for multi-platform stops)
                         'stop_name': stop_name,
                         'longitude': longitude,
                         'latitude': latitude
