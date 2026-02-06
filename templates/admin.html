@@ -250,6 +250,8 @@
                     <label for="longitude">Longitude</label>
                     <input type="number" id="longitude" step="0.0001" placeholder="e.g., 8.6821">
                 </div>
+                <button class="btn btn-secondary" onclick="getCurrentLocation()">📍 Use My Current Location</button>
+                <div id="locationResult"></div>
             </div>
         </div>
         
@@ -635,6 +637,63 @@
                 resultDiv.className = 'test-result error';
                 resultDiv.textContent = `❌ Connection error: ${error.message}`;
             }
+        }
+        
+        // Get current location using browser geolocation
+        async function getCurrentLocation() {
+            const resultDiv = document.getElementById('locationResult');
+            
+            if (!navigator.geolocation) {
+                resultDiv.className = 'test-result error';
+                resultDiv.textContent = '❌ Geolocation is not supported by your browser';
+                resultDiv.style.display = 'block';
+                return;
+            }
+            
+            resultDiv.className = 'test-result';
+            resultDiv.textContent = '⏳ Getting your location...';
+            resultDiv.style.display = 'block';
+            
+            navigator.geolocation.getCurrentPosition(
+                async (position) => {
+                    const lat = position.coords.latitude.toFixed(4);
+                    const lon = position.coords.longitude.toFixed(4);
+                    
+                    document.getElementById('latitude').value = lat;
+                    document.getElementById('longitude').value = lon;
+                    
+                    // Try to get location name using reverse geocoding
+                    try {
+                        const response = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json`);
+                        const data = await response.json();
+                        
+                        const locationName = data.address?.city || data.address?.town || data.address?.village || data.address?.state || 'Unknown Location';
+                        document.getElementById('locationName').value = locationName;
+                        
+                        resultDiv.className = 'test-result success';
+                        resultDiv.textContent = `✅ Location set to: ${locationName} (${lat}, ${lon})`;
+                    } catch (error) {
+                        resultDiv.className = 'test-result success';
+                        resultDiv.textContent = `✅ Coordinates set to: ${lat}, ${lon} (Could not fetch location name)`;
+                    }
+                },
+                (error) => {
+                    resultDiv.className = 'test-result error';
+                    let errorMsg = 'Unable to get location';
+                    switch(error.code) {
+                        case error.PERMISSION_DENIED:
+                            errorMsg = 'Location permission denied. Please allow location access in your browser.';
+                            break;
+                        case error.POSITION_UNAVAILABLE:
+                            errorMsg = 'Location information is unavailable.';
+                            break;
+                        case error.TIMEOUT:
+                            errorMsg = 'Location request timed out.';
+                            break;
+                    }
+                    resultDiv.textContent = `❌ ${errorMsg}`;
+                }
+            );
         }
         
         // Initialize
