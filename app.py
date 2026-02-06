@@ -273,7 +273,7 @@ def search_trias_stops(query, limit=20):
         
         # Log the raw response for debugging
         logger.info(f"TRIAS search for '{query}' - Response status: {response.status_code}")
-        logger.info(f"TRIAS response (first 1000 chars): {response.text[:1000]}")
+        logger.info(f"TRIAS full response:\n{response.text}")
         
         # Parse XML response
         root = ET.fromstring(response.content)
