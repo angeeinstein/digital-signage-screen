@@ -287,26 +287,39 @@
         
         <!-- AirLabs Flight Tracking -->
         <div class="card">
-            <h2>✈️ Flight Tracking (AirLabs)</h2>
+            <h2>✈️ Flight Tracking</h2>
             <div class="form-group checkbox-group">
                 <input type="checkbox" id="airlabsEnabled" checked>
                 <label for="airlabsEnabled">Enable Nearby Flights List</label>
             </div>
+            
             <div class="form-group">
-                <label for="airlabsApiKey">AirLabs API Key</label>
-                <div class="input-with-button">
-                    <input type="text" id="airlabsApiKey" placeholder="Get free API key from airlabs.co">
-                    <button class="btn btn-info btn-small" onclick="testAirlabsAPI()">🧪 Test API</button>
-                </div>
+                <label for="flightApiProvider">API Provider</label>
+                <select id="flightApiProvider" onchange="toggleFlightApiSettings()">
+                    <option value="airplaneslive">Airplanes.live (free, unlimited)</option>
+                </select>
                 <div class="help-text">
-                    Sign up at <a href="https://airlabs.co/signup" target="_blank">airlabs.co</a> - Free tier: 1,000 requests/month
+                    ✅ Unlimited real-time flight data with no API key required<br>
+                    📍 Route information (airports) cached and learned over time
                 </div>
-                <div class="test-result" id="airlabsTestResult"></div>
             </div>
+            
             <div class="form-group">
                 <label for="airlabsRadius">Search Radius (km)</label>
                 <input type="number" id="airlabsRadius" value="75" min="10" max="200" step="5">
                 <div class="help-text">How far to search for nearby flights (default: 75km)</div>
+            </div>
+            
+            <div class="form-group">
+                <h3>Route Cache Management</h3>
+                <p class="help-text">Add known flight routes to enhance display with airport information. The system learns routes automatically over time.</p>
+                <div style="display: grid; grid-template-columns: 2fr 1fr 1fr auto; gap: 10px; margin-top: 10px;">
+                    <input type="text" id="routeCallsign" placeholder="Flight (e.g., DLH123)">
+                    <input type="text" id="routeFrom" placeholder="From (e.g., FRA)">
+                    <input type="text" id="routeTo" placeholder="To (e.g., JFK)">
+                    <button class="btn btn-info btn-small" onclick="addRouteToCache()">Add Route</button>
+                </div>
+                <div class="test-result" id="routeCacheResult"></div>
             </div>
         </div>
         
@@ -386,8 +399,10 @@
                     
                     // AirLabs
                     document.getElementById('airlabsEnabled').checked = config.airlabs?.enabled !== false;
+                    document.getElementById('flightApiProvider').value = config.airlabs?.api_provider || 'airlabs';
                     document.getElementById('airlabsApiKey').value = config.airlabs?.api_key || '';
                     document.getElementById('airlabsRadius').value = config.airlabs?.radius_km || 75;
+                    toggleFlightApiSettings();
                     
                     // Transport
                     document.getElementById('transportEnabled').checked = config.transport?.enabled || false;
@@ -419,6 +434,7 @@
                     },
                     airlabs: {
                         enabled: document.getElementById('airlabsEnabled').checked,
+                        api_provider: document.getElementById('flightApiProvider').value,
                         api_key: document.getElementById('airlabsApiKey').value,
                         radius_km: parseInt(document.getElementById('airlabsRadius').value) || 75
                     },
@@ -525,6 +541,66 @@
                 resultDiv.className = 'test-result error';
                 resultDiv.textContent = `❌ Connection error: ${error.message}`;
             }
+        }
+        
+        // Add route to cache
+        async function addRouteToCache() {
+            const callsign = document.getElementById('routeCallsign').value.trim().toUpperCase();
+            const from = document.getElementById('routeFrom').value.trim().toUpperCase();
+            const to = document.getElementById('routeTo').value.trim().toUpperCase();
+            const resultDiv = document.getElementById('routeCacheResult');
+            
+            if (!callsign) {
+                resultDiv.className = 'test-result error';
+                resultDiv.textContent = '❌ Please enter a flight callsign';
+                resultDiv.style.display = 'block';
+                return;
+            }
+            
+            if (!from && !to) {
+                resultDiv.className = 'test-result error';
+                resultDiv.textContent = '❌ Please enter at least one airport (from or to)';
+                resultDiv.style.display = 'block';
+                return;
+            }
+            
+            resultDiv.className = 'test-result';
+            resultDiv.textContent = '⏳ Adding route...';
+            resultDiv.style.display = 'block';
+            
+            try {
+                const response = await fetch('/api/flight-routes/add', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ callsign, from, to })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    resultDiv.className = 'test-result success';
+                    resultDiv.innerHTML = `✅ ${data.message}<br>Cache now contains ${data.cache_size} route(s)`;
+                    
+                    // Clear inputs
+                    document.getElementById('routeCallsign').value = '';
+                    document.getElementById('routeFrom').value = '';
+                    document.getElementById('routeTo').value = '';
+                } else {
+                    resultDiv.className = 'test-result error';
+                    resultDiv.textContent = `❌ ${data.message}`;
+                }
+            } catch (error) {
+                resultDiv.className = 'test-result error';
+                resultDiv.textContent = `❌ Error: ${error.message}`;
+            }
+        }
+        
+        // Toggle flight API settings visibility
+        function toggleFlightApiSettings() {
+            // Currently only airplanes.live is available, so nothing to toggle
+            // Function kept for future compatibility
         }
         
         // Test transport API

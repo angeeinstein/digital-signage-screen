@@ -497,6 +497,10 @@ backup_installation() {
         cp "$INSTALL_DIR/dashboard_config.json" "$backup_dir/" || true
     fi
     
+    if [[ -f "$INSTALL_DIR/flight_routes_cache.json" ]]; then
+        cp "$INSTALL_DIR/flight_routes_cache.json" "$backup_dir/" || true
+    fi
+    
     # Keep only last 5 backups
     print_info "Cleaning old backups..."
     ls -dt /opt/digital-signage-backup-* 2>/dev/null | tail -n +6 | xargs rm -rf 2>/dev/null || true
@@ -528,6 +532,10 @@ restore_from_backup() {
     
     if [[ -f "$LAST_BACKUP_DIR/dashboard_config.json" ]]; then
         cp "$LAST_BACKUP_DIR/dashboard_config.json" "$INSTALL_DIR/" || true
+    fi
+    
+    if [[ -f "$LAST_BACKUP_DIR/flight_routes_cache.json" ]]; then
+        cp "$LAST_BACKUP_DIR/flight_routes_cache.json" "$INSTALL_DIR/" || true
     fi
     
     print_success "Content and configuration restored"

@@ -10,6 +10,7 @@ import os
 import json
 import logging
 import requests
+import math
 from pathlib import Path
 
 # Configure logging
@@ -26,6 +27,7 @@ app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'digital-signage-secret-
 BASE_DIR = Path(__file__).resolve().parent
 CONTENT_DIR = BASE_DIR / 'content'
 DASHBOARD_CONFIG_FILE = BASE_DIR / 'dashboard_config.json'
+FLIGHT_ROUTES_CACHE_FILE = BASE_DIR / 'flight_routes_cache.json'
 
 # Ensure directories exist
 CONTENT_DIR.mkdir(exist_ok=True)
@@ -44,6 +46,7 @@ DEFAULT_DASHBOARD_CONFIG = {
     'airlabs': {
         'api_key': '',  # AirLabs API key
         'enabled': True,
+        'api_provider': 'airplaneslive',  # 'airlabs' or 'airplaneslive'
         'radius_km': 75  # Radius for nearby flights in km
     },
     'transport': {
@@ -81,6 +84,59 @@ def save_dashboard_config(config):
     except Exception as e:
         logger.error(f"Error saving dashboard config: {e}")
         return False
+
+
+def load_flight_routes_cache():
+    """Load flight routes cache from file"""
+    if FLIGHT_ROUTES_CACHE_FILE.exists():
+        try:
+            with open(FLIGHT_ROUTES_CACHE_FILE, 'r') as f:
+                return json.load(f)
+        except Exception as e:
+            logger.error(f"Error loading flight routes cache: {e}")
+            return {}
+    return {}
+
+
+def save_flight_routes_cache(cache):
+    """Save flight routes cache to file"""
+    try:
+        with open(FLIGHT_ROUTES_CACHE_FILE, 'w') as f:
+            json.dump(cache, f, indent=2)
+    except Exception as e:
+        logger.error(f"Error saving flight routes cache: {e}")
+
+
+def get_route_from_cache(callsign, cache):
+    """Get departure and arrival airports from cache for a callsign"""
+    if not callsign:
+        return '', ''
+    
+    # Try exact match first
+    if callsign in cache:
+        route = cache[callsign]
+        return route.get('from', ''), route.get('to', '')
+    
+    # Try without flight number (e.g., "UAL123" -> "UAL")
+    airline_code = ''.join(filter(str.isalpha, callsign[:3]))
+    if airline_code and airline_code in cache:
+        route = cache[airline_code]
+        return route.get('from', ''), route.get('to', '')
+    
+    return '', ''
+
+
+def update_route_cache(callsign, from_airport, to_airport, cache):
+    """Update the route cache with new information"""
+    if not callsign or (not from_airport and not to_airport):
+        return
+    
+    cache[callsign] = {
+        'from': from_airport,
+        'to': to_airport,
+        'last_seen': datetime.now().isoformat()
+    }
+    save_flight_routes_cache(cache)
 
 
 @app.route('/')
@@ -210,7 +266,7 @@ def get_transport():
 
 @app.route('/api/dashboard/nearest-flights')
 def get_nearest_flights():
-    """Get nearest flights from AirLabs"""
+    """Get nearest flights from selected API provider"""
     try:
         config = load_dashboard_config()
         airlabs_config = config.get('airlabs', {})
@@ -218,14 +274,248 @@ def get_nearest_flights():
         if not airlabs_config.get('enabled', True):
             return jsonify({'success': True, 'flights': []})
         
-        api_key = airlabs_config.get('api_key', '').strip()
+        api_provider = airlabs_config.get('api_provider', 'airplaneslive')
+        
+        if api_provider == 'airlabs':
+            return get_flights_airlabs(config, airlabs_config)
+        elif api_provider == 'airplaneslive':
+            return get_flights_airplaneslive(config, airlabs_config)
+        elif api_provider == 'opensky':
+            return get_flights_opensky(config, airlabs_config)
+        else:
+            return jsonify({'success': False, 'message': 'Unknown API provider'}), 400
+            
+    except Exception as e:
+        logger.error(f"Error fetching nearest flights: {e}")
+        return jsonify({'success': False, 'flights': [], 'message': str(e)})
+
+
+def get_flights_airplaneslive(config, flight_config):
+    """Get flights from airplanes.live API with cached route enrichment"""
+    try:
+        # Load route cache
+        route_cache = load_flight_routes_cache()
+        
+        # Get location
+        lat = config.get('location', {}).get('lat', 50.0)
+        lon = config.get('location', {}).get('lon', 8.0)
+        radius_km = flight_config.get('radius_km', 75)
+        
+        # Convert km to nautical miles (1 km = 0.539957 nm)
+        radius_nm = int(radius_km * 0.539957)
+        
+        # Call airplanes.live API
+        url = f"http://api.airplanes.live/v2/point/{lat}/{lon}/{radius_nm}"
+        
+        response = requests.get(url, timeout=10)
+        response.raise_for_status()
+        
+        data = response.json()
+        aircraft_list = data.get('ac', [])
+        
+        # Format flights
+        nearby_flights = []
+        for aircraft in aircraft_list:
+            if not aircraft.get('lat') or not aircraft.get('lon'):
+                continue
+            
+            # Get callsign and clean it
+            callsign = (aircraft.get('flight') or '').strip()
+            if not callsign:
+                callsign = aircraft.get('r', 'Unknown')
+            
+            # Try to extract airline from callsign (first 2-3 letters)
+            airline_code = ''
+            airline_name = ''
+            if len(callsign) >= 2:
+                # Try 3-letter code first
+                if len(callsign) >= 3 and callsign[:3].isalpha():
+                    airline_code = callsign[:3]
+                elif callsign[:2].isalpha():
+                    airline_code = callsign[:2]
+                
+                # Map common airline codes
+                airline_names = {
+                    'AAL': 'American', 'DAL': 'Delta', 'UAL': 'United', 'SWA': 'Southwest',
+                    'BAW': 'British Airways', 'DLH': 'Lufthansa', 'AFR': 'Air France', 'KLM': 'KLM',
+                    'UAE': 'Emirates', 'QTR': 'Qatar', 'SIA': 'Singapore',
+                    'SWR': 'Swiss', 'AUA': 'Austrian', 'BEL': 'Brussels', 'TAP': 'TAP',
+                    'IBE': 'Iberia', 'AZA': 'ITA', 'SAS': 'SAS', 'FIN': 'Finnair',
+                    'RYR': 'Ryanair', 'EZY': 'easyJet', 'WZZ': 'Wizz Air', 'VLG': 'Vueling',
+                    'IGO': 'IndiGo', 'QFA': 'Qantas', 'ANZ': 'Air NZ', 'ACA': 'Air Canada',
+                    'ANA': 'ANA', 'JAL': 'JAL', 'CPA': 'Cathay', 'THY': 'Turkish',
+                    'ETH': 'Ethiopian', 'SAA': 'South African', 'ETD': 'Etihad', 'SVA': 'Saudia'
+                }
+                airline_name = airline_names.get(airline_code, '')
+            
+            # Try to get route from cache
+            from_airport, to_airport = get_route_from_cache(callsign, route_cache)
+            
+            nearby_flights.append({
+                'callsign': callsign,
+                'flight_number': callsign,
+                'airline': airline_code,
+                'airline_name': airline_name,
+                'aircraft_type': aircraft.get('t', ''),
+                'hex': aircraft.get('hex', ''),
+                'altitude': aircraft.get('alt_baro', 0) or 0,
+                'speed': aircraft.get('gs', 0) or 0,
+                'distance': round(aircraft.get('dst', 0), 1),  # Already in km
+                'from': from_airport,  # From cache if available
+                'to': to_airport  # From cache if available
+            })
+        
+        # Sort by distance and get nearest 5
+        nearby_flights.sort(key=lambda x: x['distance'])
+        nearest = nearby_flights[:5]
+        
+        return jsonify({'success': True, 'flights': nearest})
+        
+    except requests.exceptions.RequestException as e:
+        logger.error(f"Error fetching flights from airplanes.live: {e}")
+        return jsonify({'success': False, 'flights': [], 'message': str(e)})
+    except Exception as e:
+        logger.error(f"Error processing airplanes.live data: {e}")
+        return jsonify({'success': False, 'flights': [], 'message': str(e)})
+
+
+def get_flights_opensky(config, flight_config):
+    """Get flights from OpenSky Network API (free, no authentication)"""
+    try:
+        # Get location
+        lat = config.get('location', {}).get('lat', 50.0)
+        lon = config.get('location', {}).get('lon', 8.0)
+        radius_km = flight_config.get('radius_km', 75)
+        
+        # Calculate bounding box (approximately)
+        # 1 degree latitude ≈ 111 km
+        lat_offset = radius_km / 111.0
+        # 1 degree longitude varies by latitude
+        lon_offset = radius_km / (111.0 * math.cos(math.radians(lat)))
+        
+        lamin = lat - lat_offset
+        lamax = lat + lat_offset
+        lomin = lon - lon_offset
+        lomax = lon + lon_offset
+        
+        # Call OpenSky API
+        url = f"https://opensky-network.org/api/states/all?lamin={lamin}&lomin={lomin}&lamax={lamax}&lomax={lomax}"
+        
+        response = requests.get(url, timeout=10)
+        response.raise_for_status()
+        
+        data = response.json()
+        states = data.get('states', [])
+        
+        if not states:
+            return jsonify({'success': True, 'flights': []})
+        
+        # Format flights
+        nearby_flights = []
+        for state in states:
+            # State vector format: [icao24, callsign, origin_country, time_position, last_contact,
+            #                       longitude, latitude, baro_altitude, on_ground, velocity,
+            #                       true_track, vertical_rate, sensors, geo_altitude, squawk, spi, position_source, category]
+            
+            if len(state) < 8 or not state[5] or not state[6]:  # Need lon/lat
+                continue
+            
+            if state[8]:  # Skip if on ground
+                continue
+            
+            icao24 = state[0] or ''
+            callsign = (state[1] or '').strip()
+            origin_country = state[2] or ''
+            lon_aircraft = state[5]
+            lat_aircraft = state[6]
+            altitude_m = state[7]  # meters
+            velocity_ms = state[9]  # m/s
+            
+            # Calculate distance using Haversine formula
+            lat1, lon1 = math.radians(lat), math.radians(lon)
+            lat2, lon2 = math.radians(lat_aircraft), math.radians(lon_aircraft)
+            dlat = lat2 - lat1
+            dlon = lon2 - lon1
+            a = math.sin(dlat/2)**2 + math.cos(lat1) * math.cos(lat2) * math.sin(dlon/2)**2
+            c = 2 * math.asin(math.sqrt(a))
+            distance_km = 6371 * c
+            
+            # Convert units
+            altitude_ft = int(altitude_m * 3.28084) if altitude_m else 0  # meters to feet
+            speed_kts = int(velocity_ms * 1.94384) if velocity_ms else 0  # m/s to knots
+            
+            # Extract airline from callsign
+            airline_code = ''
+            airline_name = ''
+            if callsign and len(callsign) >= 2:
+                if len(callsign) >= 3 and callsign[:3].isalpha():
+                    airline_code = callsign[:3]
+                elif callsign[:2].isalpha():
+                    airline_code = callsign[:2]
+                
+                # Map common airline codes (3-letter ICAO)
+                airline_names = {
+                    'AAL': 'American', 'DAL': 'Delta', 'UAL': 'United', 'SWA': 'Southwest',
+                    'BAW': 'British Airways', 'DLH': 'Lufthansa', 'AFR': 'Air France', 'KLM': 'KLM',
+                    'UAE': 'Emirates', 'QTR': 'Qatar', 'SIA': 'Singapore',
+                    'SWR': 'Swiss', 'AUA': 'Austrian', 'BEL': 'Brussels', 'TAP': 'TAP',
+                    'IBE': 'Iberia', 'AZA': 'ITA', 'SAS': 'SAS', 'FIN': 'Finnair',
+                    'RYR': 'Ryanair', 'EZY': 'easyJet', 'WZZ': 'Wizz Air', 'VLG': 'Vueling',
+                    'IGO': 'IndiGo', 'QFA': 'Qantas', 'ANZ': 'Air NZ', 'ACA': 'Air Canada',
+                    'ANA': 'ANA', 'JAL': 'JAL', 'CPA': 'Cathay', 'THY': 'Turkish',
+                    'ETH': 'Ethiopian', 'SAA': 'South African', 'ETD': 'Etihad', 'SVA': 'Saudia'
+                }
+                airline_name = airline_names.get(airline_code, '')
+            
+            # Get aircraft category
+            category = ''
+            if len(state) > 17 and state[17]:
+                cat_num = state[17]
+                categories = {
+                    2: 'Light', 3: 'Small', 4: 'Large', 5: 'Heavy', 6: 'Super Heavy',
+                    7: 'High Perf', 8: 'Helicopter', 9: 'Glider', 14: 'UAV'
+                }
+                category = categories.get(cat_num, '')
+            
+            nearby_flights.append({
+                'callsign': callsign if callsign else icao24.upper(),
+                'flight_number': callsign if callsign else icao24.upper(),
+                'airline': airline_code,
+                'airline_name': airline_name,
+                'aircraft_type': category,  # Use category since we don't have type
+                'hex': icao24,
+                'altitude': altitude_ft,
+                'speed': speed_kts,
+                'distance': round(distance_km, 1),
+                'from': origin_country,  # Use origin country instead of departure airport
+                'to': ''  # Not available
+            })
+        
+        # Sort by distance and get nearest 5
+        nearby_flights.sort(key=lambda x: x['distance'])
+        nearest = nearby_flights[:5]
+        
+        return jsonify({'success': True, 'flights': nearest})
+        
+    except requests.exceptions.RequestException as e:
+        logger.error(f"Error fetching flights from OpenSky: {e}")
+        return jsonify({'success': False, 'flights': [], 'message': str(e)})
+    except Exception as e:
+        logger.error(f"Error processing OpenSky data: {e}")
+        return jsonify({'success': False, 'flights': [], 'message': str(e)})
+
+
+def get_flights_airlabs(config, flight_config):
+    """Get flights from AirLabs API"""
+    try:
+        api_key = flight_config.get('api_key', '').strip()
         if not api_key:
             return jsonify({'success': True, 'flights': [], 'message': 'AirLabs API key not configured'})
         
         # Get location
         lat = config.get('location', {}).get('lat', 50.0)
         lon = config.get('location', {}).get('lon', 8.0)
-        radius_km = airlabs_config.get('radius_km', 75)
+        radius_km = flight_config.get('radius_km', 75)
         
         # Calculate bounding box (approximately)
         # 1 degree latitude ≈ 111 km
@@ -461,6 +751,53 @@ def test_transport_api():
         return jsonify({'success': False, 'message': 'Connection error'}), 500
     except Exception as e:
         logger.error(f"Error testing transport API: {e}")
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+
+@app.route('/api/flight-routes/add', methods=['POST'])
+def add_flight_route():
+    """Manually add a flight route to the cache"""
+    try:
+        data = request.get_json()
+        callsign = data.get('callsign', '').strip().upper()
+        from_airport = data.get('from', '').strip().upper()
+        to_airport = data.get('to', '').strip().upper()
+        
+        if not callsign:
+            return jsonify({'success': False, 'message': 'Callsign is required'}), 400
+        
+        if not from_airport and not to_airport:
+            return jsonify({'success': False, 'message': 'At least one airport (from or to) is required'}), 400
+        
+        # Load cache
+        cache = load_flight_routes_cache()
+        
+        # Update cache
+        update_route_cache(callsign, from_airport, to_airport, cache)
+        
+        return jsonify({
+            'success': True, 
+            'message': f'Route added: {callsign} {from_airport} → {to_airport}',
+            'cache_size': len(cache)
+        })
+        
+    except Exception as e:
+        logger.error(f"Error adding flight route: {e}")
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+
+@app.route('/api/flight-routes/list')
+def list_flight_routes():
+    """Get all cached flight routes"""
+    try:
+        cache = load_flight_routes_cache()
+        return jsonify({
+            'success': True,
+            'routes': cache,
+            'count': len(cache)
+        })
+    except Exception as e:
+        logger.error(f"Error listing flight routes: {e}")
         return jsonify({'success': False, 'message': str(e)}), 500
 
 

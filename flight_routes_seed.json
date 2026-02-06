@@ -1,0 +1,23 @@
+{
+  "comment": "Common flight routes seed data - automatically populated into cache",
+  "routes": {
+    "DLH": {"from": "FRA", "to": "Various", "airline": "Lufthansa"},
+    "UAL": {"from": "Various", "to": "Various", "airline": "United"},
+    "AAL": {"from": "Various", "to": "Various", "airline": "American"},
+    "DAL": {"from": "Various", "to": "Various", "airline": "Delta"},
+    "BAW": {"from": "LHR", "to": "Various", "airline": "British Airways"},
+    "AFR": {"from": "CDG", "to": "Various", "airline": "Air France"},
+    "KLM": {"from": "AMS", "to": "Various", "airline": "KLM"},
+    "SWR": {"from": "ZRH", "to": "Various", "airline": "Swiss"},
+    "AUA": {"from": "VIE", "to": "Various", "airline": "Austrian"},
+    "IBE": {"from": "MAD", "to": "Various", "airline": "Iberia"},
+    "RYR": {"from": "Various", "to": "Various", "airline": "Ryanair"},
+    "EZY": {"from": "Various", "to": "Various", "airline": "easyJet"},
+    "UAE": {"from": "DXB", "to": "Various", "airline": "Emirates"},
+    "QTR": {"from": "DOH", "to": "Various", "airline": "Qatar Airways"},
+    "SIA": {"from": "SIN", "to": "Various", "airline": "Singapore Airlines"},
+    "THY": {"from": "IST", "to": "Various", "airline": "Turkish Airlines"},
+    "ETD": {"from": "AUH", "to": "Various", "airline": "Etihad"},
+    "SVA": {"from": "JED", "to": "Various", "airline": "Saudia"}
+  }
+}
