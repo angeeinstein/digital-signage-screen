@@ -354,23 +354,42 @@
         
         <!-- Transport Settings -->
         <div class="card">
-            <h2>🚌 Public Transport Settings</h2>
+            <h2>🚌 Public Transport Settings (TRIAS API)</h2>
             <div class="form-group checkbox-group">
-                <input type="checkbox" id="transportEnabled">
+                <input type="checkbox" id="transportEnabled" checked>
                 <label for="transportEnabled">Enable Transport Display</label>
             </div>
+            <p class="help-text">
+                Using TRIAS API (Austrian public transit) - no API key required<br>
+                Search for your stop by name to get real-time departures
+            </p>
+            
             <div class="form-group">
-                <label for="transportApiUrl">API URL</label>
+                <label for="transportStopSearch">Search for Stop</label>
                 <div class="input-with-button">
-                    <input type="text" id="transportApiUrl" placeholder="Transport API endpoint">
-                    <button class="btn btn-info btn-small" onclick="testTransportAPI()">🧪 Test API</button>
+                    <input type="text" id="transportStopSearch" placeholder="Enter stop name (e.g., Alte Poststraße)">
+                    <button class="btn btn-info btn-small" onclick="searchTransitStops()">🔍 Search</button>
                 </div>
-                <div class="help-text">Provide the API details when ready</div>
-                <div class="test-result" id="transportTestResult"></div>
+                <div class="help-text">Type at least 2 characters and click Search</div>
             </div>
+            
+            <div class="form-group" id="stopSearchResults" style="display: none;">
+                <label>Search Results (click to select):</label>
+                <div id="stopsList" style="max-height: 200px; overflow-y: auto; border: 1px solid rgba(255,255,255,0.2); border-radius: 4px; padding: 5px;"></div>
+            </div>
+            
+            <div class="form-group">
+                <label for="transportStopName">Selected Stop</label>
+                <input type="text" id="transportStopName" placeholder="No stop selected" readonly>
+            </div>
+            
             <div class="form-group">
                 <label for="transportStopId">Stop ID</label>
-                <input type="text" id="transportStopId" placeholder="Station or stop ID">
+                <div class="input-with-button">
+                    <input type="text" id="transportStopId" placeholder="Stop ID (from search)" readonly>
+                    <button class="btn btn-info btn-small" onclick="testTransportAPI()">🧪 Test</button>
+                </div>
+                <div class="test-result" id="transportTestResult"></div>
             </div>
         </div>
         
@@ -439,9 +458,9 @@
                     document.getElementById('cacheExpiry').value = config.opensky?.cache_days || 7;
                     
                     // Transport
-                    document.getElementById('transportEnabled').checked = config.transport?.enabled || false;
-                    document.getElementById('transportApiUrl').value = config.transport?.api_url || '';
+                    document.getElementById('transportEnabled').checked = config.transport?.enabled !== false;
                     document.getElementById('transportStopId').value = config.transport?.stop_id || '';
+                    document.getElementById('transportStopName').value = config.transport?.stop_name || '';
                     
                     // Timetable
                     document.getElementById('timetableEnabled').checked = config.timetable?.enabled !== false;
@@ -479,8 +498,9 @@
                     },
                     transport: {
                         enabled: document.getElementById('transportEnabled').checked,
-                        api_url: document.getElementById('transportApiUrl').value,
-                        stop_id: document.getElementById('transportStopId').value
+                        api_type: 'trias',
+                        stop_id: document.getElementById('transportStopId').value,
+                        stop_name: document.getElementById('transportStopName').value
                     },
                     timetable: {
                         enabled: document.getElementById('timetableEnabled').checked,
@@ -685,29 +705,71 @@
         }
         
         // Test transport API
+        async function searchTransitStops() {
+            const query = document.getElementById('transportStopSearch').value;
+            const resultsDiv = document.getElementById('stopSearchResults');
+            const stopsList = document.getElementById('stopsList');
+            
+            if (!query || query.length < 2) {
+                alert('Please enter at least 2 characters');
+                return;
+            }
+            
+            try {
+                stopsList.innerHTML = '<div style="padding: 10px;">⏳ Searching...</div>';
+                resultsDiv.style.display = 'block';
+                
+                const response = await fetch(`/api/transport/search-stops?query=${encodeURIComponent(query)}`);
+                const data = await response.json();
+                
+                if (data.success && data.stops.length > 0) {
+                    stopsList.innerHTML = data.stops.map(stop => `
+                        <div style="padding: 8px; margin: 2px; background: rgba(255,255,255,0.1); border-radius: 4px; cursor: pointer; transition: background 0.2s;" 
+                             onmouseover="this.style.background='rgba(255,255,255,0.2)'"
+                             onmouseout="this.style.background='rgba(255,255,255,0.1)'"
+                             onclick="selectStop('${stop.stop_id.replace(/'/g, "\\'")}', '${stop.stop_name.replace(/'/g, "\\'")}')">
+                            <strong>${stop.stop_name}</strong><br>
+                            <small style="opacity: 0.7;">${stop.stop_id}</small>
+                        </div>
+                    `).join('');
+                } else {
+                    stopsList.innerHTML = '<div style="padding: 10px; opacity: 0.7;">No stops found. Try a different search term.</div>';
+                }
+            } catch (error) {
+                stopsList.innerHTML = `<div style="padding: 10px; color: #ff4444;">❌ Error: ${error.message}</div>`;
+            }
+        }
+        
+        function selectStop(stopId, stopName) {
+            document.getElementById('transportStopId').value = stopId;
+            document.getElementById('transportStopName').value = stopName;
+            document.getElementById('stopSearchResults').style.display = 'none';
+            document.getElementById('transportStopSearch').value = '';
+            showSuccess(`Selected stop: ${stopName}`);
+        }
+        
         async function testTransportAPI() {
-            const apiUrl = document.getElementById('transportApiUrl').value;
             const stopId = document.getElementById('transportStopId').value;
             const resultDiv = document.getElementById('transportTestResult');
             
-            if (!apiUrl) {
+            if (!stopId) {
                 resultDiv.className = 'test-result error';
-                resultDiv.textContent = '❌ Please enter API URL first';
+                resultDiv.textContent = '❌ Please select a stop first';
                 resultDiv.style.display = 'block';
                 return;
             }
             
             resultDiv.className = 'test-result';
-            resultDiv.textContent = '⏳ Testing API...';
+            resultDiv.textContent = '⏳ Testing TRIAS API...';
             resultDiv.style.display = 'block';
             
             try {
-                const response = await fetch(`/api/test/transport?api_url=${encodeURIComponent(apiUrl)}&stop_id=${encodeURIComponent(stopId)}`);
+                const response = await fetch(`/api/test/transport?stop_id=${encodeURIComponent(stopId)}`);
                 const data = await response.json();
                 
                 if (data.success) {
                     resultDiv.className = 'test-result success';
-                    resultDiv.textContent = `✅ API working! Response received successfully.`;
+                    resultDiv.innerHTML = `✅ API working! Found ${data.departures.length} departures<br><small>${data.departures.map(d => `Line ${d.line} → ${d.direction} at ${d.time}`).join('<br>')}</small>`;
                 } else {
                     resultDiv.className = 'test-result error';
                     resultDiv.textContent = `❌ API Error: ${data.message}`;

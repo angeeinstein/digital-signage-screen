@@ -13,6 +13,7 @@ import requests
 import math
 import time
 from pathlib import Path
+import xml.etree.ElementTree as ET
 
 # Configure logging
 logging.basicConfig(
@@ -57,9 +58,10 @@ DEFAULT_DASHBOARD_CONFIG = {
         'cache_days': 7  # Days to cache route data before refresh
     },
     'transport': {
-        'enabled': False,
-        'api_url': '',
-        'stop_id': ''
+        'enabled': True,
+        'api_type': 'trias',  # 'trias' for Austrian public transit
+        'stop_id': '',  # TRIAS Stop ID (e.g., AT:47:1234:1:1)
+        'stop_name': ''  # Display name of the stop
     },
     'timetable': {
         'enabled': True,
@@ -192,6 +194,153 @@ def load_flight_routes_cache():
             logger.error(f"Error loading flight routes cache: {e}")
             return {}
     return {}
+
+
+def save_flight_routes_cache(cache):
+    """Save flight routes cache to file"""
+    try:
+        with open(FLIGHT_ROUTES_CACHE_FILE, 'w') as f:
+            json.dump(cache, f, indent=2)
+        return True
+    except Exception as e:
+        logger.error(f"Error saving flight routes cache: {e}")
+        return False
+
+
+# TRIAS API Constants and Functions
+TRIAS_API_URL = "http://ogdtrias.verbundlinie.at:8183/stv/trias"
+TRIAS_NAMESPACES = {
+    'trias': 'http://www.vdv.de/trias',
+    'siri': 'http://www.siri.org.uk/siri'
+}
+
+def get_trias_timestamp():
+    """Get current UTC timestamp in TRIAS format"""
+    return datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ')
+
+def search_trias_stops(query, limit=10):
+    """Search for transit stops using TRIAS API"""
+    xml_request = f'''<?xml version="1.0" encoding="UTF-8"?>
+<Trias xmlns="http://www.vdv.de/trias" xmlns:siri="http://www.siri.org.uk/siri" version="1.2">
+    <ServiceRequest>
+        <siri:RequestTimestamp>{get_trias_timestamp()}</siri:RequestTimestamp>
+        <siri:RequestorRef>digital_signage</siri:RequestorRef>
+        <RequestPayload>
+            <LocationInformationRequest>
+                <InitialInput>
+                    <LocationName>
+                        <Text>{query}</Text>
+                        <Language>de</Language>
+                    </LocationName>
+                </InitialInput>
+                <Restrictions>
+                    <Type>stop</Type>
+                    <NumberOfResults>{limit}</NumberOfResults>
+                </Restrictions>
+            </LocationInformationRequest>
+        </RequestPayload>
+    </ServiceRequest>
+</Trias>'''
+    
+    try:
+        response = requests.post(
+            TRIAS_API_URL,
+            data=xml_request.encode('utf-8'),
+            headers={'Content-Type': 'text/xml'},
+            timeout=10
+        )
+        response.raise_for_status()
+        
+        # Parse XML response
+        root = ET.fromstring(response.content)
+        stops = []
+        
+        for location in root.findall('.//trias:Location', TRIAS_NAMESPACES):
+            stop_ref_elem = location.find('.//trias:StopPointRef', TRIAS_NAMESPACES)
+            stop_name_elem = location.find('.//trias:StopPointName/trias:Text', TRIAS_NAMESPACES)
+            lon_elem = location.find('.//trias:Longitude', TRIAS_NAMESPACES)
+            lat_elem = location.find('.//trias:Latitude', TRIAS_NAMESPACES)
+            
+            if stop_ref_elem is not None and stop_name_elem is not None:
+                stops.append({
+                    'stop_id': stop_ref_elem.text,
+                    'stop_name': stop_name_elem.text,
+                    'longitude': float(lon_elem.text) if lon_elem is not None else None,
+                    'latitude': float(lat_elem.text) if lat_elem is not None else None
+                })
+        
+        return stops
+    except Exception as e:
+        logger.error(f"Error searching TRIAS stops: {e}")
+        return []
+
+def get_trias_departures(stop_id, limit=10):
+    """Get departures for a stop using TRIAS API"""
+    xml_request = f'''<?xml version="1.0" encoding="UTF-8"?>
+<Trias xmlns="http://www.vdv.de/trias" xmlns:siri="http://www.siri.org.uk/siri" version="1.2">
+    <ServiceRequest>
+        <siri:RequestTimestamp>{get_trias_timestamp()}</siri:RequestTimestamp>
+        <siri:RequestorRef>digital_signage</siri:RequestorRef>
+        <RequestPayload>
+            <StopEventRequest>
+                <Location>
+                    <LocationRef>
+                        <StopPointRef>{stop_id}</StopPointRef>
+                    </LocationRef>
+                </Location>
+                <Params>
+                    <NumberOfResults>{limit}</NumberOfResults>
+                    <StopEventType>departure</StopEventType>
+                    <IncludeRealtimeData>true</IncludeRealtimeData>
+                </Params>
+                <DepartureWindow>60</DepartureWindow>
+            </StopEventRequest>
+        </RequestPayload>
+    </ServiceRequest>
+</Trias>'''
+    
+    try:
+        response = requests.post(
+            TRIAS_API_URL,
+            data=xml_request.encode('utf-8'),
+            headers={'Content-Type': 'text/xml'},
+            timeout=10
+        )
+        response.raise_for_status()
+        
+        # Parse XML response
+        root = ET.fromstring(response.content)
+        departures = []
+        
+        for stop_event in root.findall('.//trias:StopEvent', TRIAS_NAMESPACES):
+            line_elem = stop_event.find('.//trias:PublishedLineName/trias:Text', TRIAS_NAMESPACES)
+            dest_elem = stop_event.find('.//trias:DestinationText/trias:Text', TRIAS_NAMESPACES)
+            timetabled_elem = stop_event.find('.//trias:TimetabledTime', TRIAS_NAMESPACES)
+            estimated_elem = stop_event.find('.//trias:EstimatedTime', TRIAS_NAMESPACES)
+            
+            # Use estimated time if available, otherwise timetabled
+            departure_time = estimated_elem.text if estimated_elem is not None else (timetabled_elem.text if timetabled_elem is not None else None)
+            is_realtime = estimated_elem is not None
+            
+            if departure_time:
+                # Parse ISO timestamp and format as HH:MM
+                try:
+                    dt = datetime.fromisoformat(departure_time.replace('Z', '+00:00'))
+                    time_str = dt.strftime('%H:%M')
+                except:
+                    time_str = departure_time
+                
+                departures.append({
+                    'line': line_elem.text if line_elem is not None else 'N/A',
+                    'direction': dest_elem.text if dest_elem is not None else 'N/A',
+                    'time': time_str,
+                    'is_realtime': is_realtime
+                })
+        
+        return departures
+    except Exception as e:
+        logger.error(f"Error getting TRIAS departures: {e}")
+        return []
 
 
 def save_flight_routes_cache(cache):
@@ -468,13 +617,12 @@ def get_transport():
         if not transport_config.get('enabled', False):
             return jsonify({'success': True, 'departures': []})
         
-        # This will be customized based on the specific API you provide
-        # For now, returning mock data
-        departures = [
-            {'line': '3', 'destination': 'Airport', 'time': '5 min', 'color': '#E53935'},
-            {'line': '12', 'destination': 'Main Station', 'time': '8 min', 'color': '#1E88E5'},
-            {'line': '45', 'destination': 'University', 'time': '12 min', 'color': '#43A047'},
-        ]
+        stop_id = transport_config.get('stop_id', '')
+        if not stop_id:
+            return jsonify({'success': True, 'departures': []})
+        
+        # Get departures from TRIAS API
+        departures = get_trias_departures(stop_id, limit=5)
         
         return jsonify({'success': True, 'departures': departures})
         
@@ -987,28 +1135,45 @@ def test_weather_api():
 
 @app.route('/api/test/transport')
 def test_transport_api():
-    """Test transport API"""
+    """Test TRIAS transport API"""
     try:
-        api_url = request.args.get('api_url', '')
         stop_id = request.args.get('stop_id', '')
         
-        if not api_url:
-            return jsonify({'success': False, 'message': 'No API URL provided'}), 400
+        if not stop_id:
+            return jsonify({'success': False, 'message': 'No stop ID provided'}), 400
         
-        # This is a placeholder - will need to be customized based on actual API
-        response = requests.get(api_url, timeout=10)
+        # Test by getting departures
+        departures = get_trias_departures(stop_id, limit=3)
         
-        if response.status_code == 200:
-            return jsonify({'success': True, 'message': 'API accessible'})
+        if departures:
+            return jsonify({
+                'success': True,
+                'message': f'Found {len(departures)} departures',
+                'departures': departures
+            })
         else:
-            return jsonify({'success': False, 'message': f'HTTP {response.status_code}'}), response.status_code
+            return jsonify({'success': False, 'message': 'No departures found or API error'}), 500
             
-    except requests.exceptions.Timeout:
-        return jsonify({'success': False, 'message': 'Request timeout'}), 500
-    except requests.exceptions.ConnectionError:
-        return jsonify({'success': False, 'message': 'Connection error'}), 500
     except Exception as e:
         logger.error(f"Error testing transport API: {e}")
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+
+@app.route('/api/transport/search-stops')
+def search_stops():
+    """Search for transit stops by name"""
+    try:
+        query = request.args.get('query', '')
+        
+        if not query or len(query) < 2:
+            return jsonify({'success': False, 'message': 'Query too short'}), 400
+        
+        stops = search_trias_stops(query, limit=15)
+        
+        return jsonify({'success': True, 'stops': stops})
+        
+    except Exception as e:
+        logger.error(f"Error searching stops: {e}")
         return jsonify({'success': False, 'message': str(e)}), 500
 
 

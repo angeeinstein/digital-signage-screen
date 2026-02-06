@@ -592,12 +592,12 @@
                     list.innerHTML = data.departures.map(dep => `
                         <div class="transport-item">
                             <div>
-                                <div class="transport-line" style="background-color: ${dep.color || 'rgba(255,255,255,0.2)'}">
+                                <div class="transport-line">
                                     ${dep.line}
                                 </div>
-                                <div style="font-size: 14px; margin-top: 5px;">${dep.destination}</div>
+                                <div style="font-size: 14px; margin-top: 5px;">${dep.direction}</div>
                             </div>
-                            <div class="transport-time">${dep.time}</div>
+                            <div class="transport-time">${dep.is_realtime ? '🔴 ' : ''}${dep.time}</div>
                         </div>
                     `).join('');
                 }
