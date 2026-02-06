@@ -12,11 +12,12 @@ backlog = 2048
 
 # Worker processes - optimized for Raspberry Pi 5
 # Pi 5 has 4 cores, use 2 workers to leave resources for display
-workers = 2
+workers = 1  # Start with 1 worker to avoid issues
 worker_class = "sync"
 worker_connections = 1000
 timeout = 30
 keepalive = 2
+preload_app = False  # Don't preload to see errors better
 
 # Max requests per worker before restart (prevent memory leaks)
 max_requests = 1000
