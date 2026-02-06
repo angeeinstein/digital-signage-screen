@@ -242,10 +242,21 @@ def fetch_route_from_opensky(icao24, config):
                 if departure or arrival:
                     logger.info(f"OpenSky: Found route for {icao24}: {departure} → {arrival}")
                     return departure, arrival
+            else:
+                logger.debug(f"OpenSky: No flights found for {icao24} in database")
         elif response.status_code == 401:
             logger.warning("OpenSky API: Authentication failed. Check credentials.")
         elif response.status_code == 429:
             logger.warning("OpenSky API: Rate limit exceeded. Using cache only.")
+        elif response.status_code == 400:
+            # Log the actual error message from OpenSky
+            try:
+                error_data = response.json()
+                logger.warning(f"OpenSky API 400 error for {icao24}: {error_data}")
+            except:
+                logger.warning(f"OpenSky API 400 error for {icao24}: {response.text}")
+        else:
+            logger.warning(f"OpenSky API returned {response.status_code} for {icao24}")
         
         return None, None
         
@@ -921,6 +932,10 @@ def test_opensky_api():
         
         response = requests.get(url, headers=headers, timeout=10)
         
+        logger.info(f"OpenSky test API - Status: {response.status_code}, URL: {url}")
+        if response.status_code != 200:
+            logger.error(f"OpenSky test API error response: {response.text}")
+        
         if response.status_code == 200:
             flights = response.json()
             flight_count = len(flights) if flights else 0
@@ -959,6 +974,17 @@ def test_opensky_api():
                 'success': False,
                 'message': 'Rate limit exceeded. Anonymous users: 400 credits/day. With credentials: 4,000-8,000/day.'
             }), 429
+        
+        elif response.status_code == 400:
+            try:
+                error_data = response.json()
+                error_msg = error_data.get('message', str(error_data))
+            except:
+                error_msg = response.text
+            return jsonify({
+                'success': False,
+                'message': f'API returned 400 Bad Request: {error_msg}. This usually means the time range is invalid (OpenSky requires begin < end, and end must be at least 1 day ago).'
+            }), 400
         
         else:
             return jsonify({
