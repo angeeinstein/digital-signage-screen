@@ -772,11 +772,10 @@ def fetch_route_from_airlabs(flight_number, config):
             logger.debug("AirLabs: Route lookup disabled")
             return None, None
         
-        if not api_key:
-            return None, None
-        
         # Clean flight number (remove spaces, convert to uppercase)
         clean_flight = flight_number.strip().replace(' ', '').upper()
+        
+        logger.info(f"AirLabs: Querying route for {clean_flight}")
         
         # AirLabs routes endpoint
         url = f"https://airlabs.co/api/v9/routes"
@@ -786,6 +785,8 @@ def fetch_route_from_airlabs(flight_number, config):
         }
         
         response = requests.get(url, params=params, timeout=10)
+        
+        logger.info(f"AirLabs: API response status {response.status_code}")
         
         if response.status_code == 200:
             data = response.json()
@@ -797,14 +798,16 @@ def fetch_route_from_airlabs(flight_number, config):
                 if departure or arrival:
                     logger.info(f"AirLabs: Found route for {flight_number}: {departure} → {arrival}")
                     return departure, arrival
+                else:
+                    logger.info(f"AirLabs: Response had empty airports for {flight_number}")
             else:
-                logger.debug(f"AirLabs: No route found for flight {flight_number}")
+                logger.info(f"AirLabs: No route data in response for {flight_number}")
         elif response.status_code == 429:
             logger.warning("AirLabs API: Rate limit exceeded")
         elif response.status_code == 401:
             logger.warning("AirLabs API: Invalid API key")
         else:
-            logger.debug(f"AirLabs API returned status {response.status_code}")
+            logger.warning(f"AirLabs API returned status {response.status_code} for {flight_number}")
         
         return None, None
     except Exception as e:
