@@ -761,8 +761,16 @@ def fetch_route_from_opensky(icao24, config):
 def fetch_route_from_airlabs(flight_number, config):
     """Fetch flight route from AirLabs API using flight number"""
     try:
-        airlabs_config = config.get('airlabs', {})
+        airlabs_config = config.get('airlabs_route', {})
         api_key = airlabs_config.get('api_key', '').strip()
+        
+        if not api_key:
+            logger.debug("AirLabs: No API key configured")
+            return None, None
+        
+        if not airlabs_config.get('enabled', True):
+            logger.debug("AirLabs: Route lookup disabled")
+            return None, None
         
         if not api_key:
             return None, None
