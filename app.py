@@ -242,15 +242,20 @@ def get_timetable():
 def test_weather_api():
     """Test weather API with provided key"""
     try:
-        api_key = request.args.get('api_key', '')
+        api_key = request.args.get('api_key', '').strip()
         lat = float(request.args.get('lat', 50.0))
         lon = float(request.args.get('lon', 8.0))
         
         if not api_key:
             return jsonify({'success': False, 'message': 'No API key provided'}), 400
         
+        # Log for debugging
+        logger.info(f"Testing weather API with key length: {len(api_key)}, lat: {lat}, lon: {lon}")
+        
         url = f"https://api.openweathermap.org/data/2.5/weather?lat={lat}&lon={lon}&appid={api_key}&units=metric"
         response = requests.get(url, timeout=10)
+        
+        logger.info(f"Weather API response: {response.status_code}")
         
         if response.status_code == 200:
             data = response.json()
@@ -261,12 +266,27 @@ def test_weather_api():
                 'location': data.get('name', 'Unknown')
             })
         elif response.status_code == 401:
-            return jsonify({'success': False, 'message': 'Invalid API key. Check your key at openweathermap.org'}), 401
+            try:
+                error_data = response.json()
+                error_msg = error_data.get('message', 'Invalid API key')
+                return jsonify({
+                    'success': False, 
+                    'message': f'Invalid API key: {error_msg}. Note: New keys can take 10-15 minutes to activate!'
+                }), 401
+            except:
+                return jsonify({
+                    'success': False, 
+                    'message': 'Invalid API key. New keys can take 10-15 minutes to activate!'
+                }), 401
         elif response.status_code == 429:
             return jsonify({'success': False, 'message': 'API rate limit exceeded. Wait a minute and try again'}), 429
         else:
-            error_data = response.json()
-            return jsonify({'success': False, 'message': error_data.get('message', 'API request failed')}), response.status_code
+            try:
+                error_data = response.json()
+                error_msg = error_data.get('message', f'HTTP {response.status_code}')
+            except:
+                error_msg = f'HTTP {response.status_code}'
+            return jsonify({'success': False, 'message': f'API Error: {error_msg}'}), response.status_code
             
     except requests.exceptions.Timeout:
         return jsonify({'success': False, 'message': 'Request timeout. Check your internet connection'}), 500
@@ -274,7 +294,7 @@ def test_weather_api():
         return jsonify({'success': False, 'message': 'Connection error. Check your internet connection'}), 500
     except Exception as e:
         logger.error(f"Error testing weather API: {e}")
-        return jsonify({'success': False, 'message': str(e)}), 500
+        return jsonify({'success': False, 'message': f'Error: {str(e)}'}), 500
 
 
 @app.route('/api/test/transport')

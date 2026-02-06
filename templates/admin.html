@@ -490,20 +490,35 @@
                 return;
             }
             
+            // Trim whitespace from API key
+            const trimmedKey = apiKey.trim();
+            if (trimmedKey !== apiKey) {
+                document.getElementById('weatherApiKey').value = trimmedKey;
+            }
+            
             resultDiv.className = 'test-result';
-            resultDiv.textContent = '⏳ Testing API...';
+            resultDiv.textContent = '⏳ Testing API... (This may take a few seconds)';
             resultDiv.style.display = 'block';
             
             try {
-                const response = await fetch(`/api/test/weather?api_key=${encodeURIComponent(apiKey)}&lat=${lat}&lon=${lon}`);
+                const response = await fetch(`/api/test/weather?api_key=${encodeURIComponent(trimmedKey)}&lat=${lat}&lon=${lon}`);
                 const data = await response.json();
                 
                 if (data.success) {
                     resultDiv.className = 'test-result success';
-                    resultDiv.textContent = `✅ API working! Temperature: ${data.temp}°C, ${data.description}`;
+                    resultDiv.innerHTML = `✅ <strong>API working!</strong><br>Temperature: ${data.temp}°C<br>${data.description}<br>Location: ${data.location}`;
                 } else {
                     resultDiv.className = 'test-result error';
-                    resultDiv.textContent = `❌ API Error: ${data.message}`;
+                    if (response.status === 401) {
+                        resultDiv.innerHTML = `❌ <strong>${data.message}</strong><br><br>
+                            <strong>Troubleshooting:</strong><br>
+                            1. If you just created the key, wait 10-15 minutes and try again<br>
+                            2. Copy the key again from <a href="https://home.openweathermap.org/api_keys" target="_blank">OpenWeatherMap</a><br>
+                            3. Make sure you copied the entire key (32 characters)<br>
+                            4. Key length: ${trimmedKey.length} characters`;
+                    } else {
+                        resultDiv.textContent = `❌ ${data.message}`;
+                    }
                 }
             } catch (error) {
                 resultDiv.className = 'test-result error';
