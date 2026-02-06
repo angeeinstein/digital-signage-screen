@@ -32,6 +32,13 @@ CONTENT_DIR = BASE_DIR / 'content'
 DASHBOARD_CONFIG_FILE = BASE_DIR / 'dashboard_config.json'
 FLIGHT_ROUTES_CACHE_FILE = BASE_DIR / 'flight_routes_cache.json'
 
+# Cache for nearest flights API to prevent rate limiting
+flights_cache = {
+    'data': None,
+    'timestamp': 0,
+    'ttl': 30  # Cache for 30 seconds
+}
+
 # Ensure directories exist
 CONTENT_DIR.mkdir(exist_ok=True)
 
@@ -965,24 +972,40 @@ def get_transport():
 
 @app.route('/api/dashboard/nearest-flights')
 def get_nearest_flights():
-    """Get nearest flights from selected API provider"""
+    """Get nearest flights from selected API provider with caching"""
     try:
+        # Check cache first
+        current_time = time.time()
+        if flights_cache['data'] is not None and (current_time - flights_cache['timestamp']) < flights_cache['ttl']:
+            logger.debug(f"Returning cached flights data (age: {current_time - flights_cache['timestamp']:.1f}s)")
+            return flights_cache['data']
+        
         config = load_dashboard_config()
         airlabs_config = config.get('airlabs', {})
         
         if not airlabs_config.get('enabled', True):
-            return jsonify({'success': True, 'flights': []})
+            result = jsonify({'success': True, 'flights': []})
+            flights_cache['data'] = result
+            flights_cache['timestamp'] = current_time
+            return result
         
         api_provider = airlabs_config.get('api_provider', 'airplaneslive')
         
         if api_provider == 'airlabs':
-            return get_flights_airlabs(config, airlabs_config)
+            result = get_flights_airlabs(config, airlabs_config)
         elif api_provider == 'airplaneslive':
-            return get_flights_airplaneslive(config, airlabs_config)
+            result = get_flights_airplaneslive(config, airlabs_config)
         elif api_provider == 'opensky':
-            return get_flights_opensky(config, airlabs_config)
+            result = get_flights_opensky(config, airlabs_config)
         else:
             return jsonify({'success': False, 'message': 'Unknown API provider'}), 400
+        
+        # Cache the result
+        flights_cache['data'] = result
+        flights_cache['timestamp'] = current_time
+        logger.debug(f"Cached new flights data at {current_time}")
+        
+        return result
             
     except Exception as e:
         logger.error(f"Error fetching nearest flights: {e}")

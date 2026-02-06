@@ -322,45 +322,47 @@
             max-height: 350px;
         }
         
-        .timetable-grid {
+        .timetable-list {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+        
+        .timetable-item {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 15px;
-        }
-        
-        .lecture {
-            background: rgba(255, 255, 255, 0.15);
-            padding: 15px;
-            border-radius: 10px;
-            border-left: 4px solid #4CAF50;
-        }
-        
-        .lecture.now {
-            border-left-color: #ff9800;
-            background: rgba(255, 152, 0, 0.2);
-        }
-        
-        .lecture-year {
-            font-size: 14px;
-            font-weight: bold;
-            opacity: 0.8;
-            margin-bottom: 5px;
-        }
-        
-        .lecture-time {
-            font-size: 20px;
-            font-weight: bold;
-            margin-bottom: 8px;
-        }
-        
-        .lecture-name {
-            font-size: 18px;
-            margin-bottom: 5px;
-        }
-        
-        .lecture-room {
+            grid-template-columns: 70px 1fr 120px;
+            align-items: center;
+            gap: 12px;
+            padding: 8px 12px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 0;
             font-size: 16px;
-            opacity: 0.9;
+        }
+        
+        .timetable-item.now {
+            background: rgba(255, 152, 0, 0.2);
+            border-left: 3px solid #ff9800;
+        }
+        
+        .timetable-item > span {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        
+        .timetable-time {
+            font-weight: bold;
+            font-size: 18px;
+        }
+        
+        .timetable-course {
+            font-size: 16px;
+        }
+        
+        .timetable-room {
+            font-size: 15px;
+            opacity: 0.85;
+            text-align: right;
         }
         
         /* Scrollbar styling */
@@ -457,15 +459,18 @@
             <!-- Timetable integrated into weather widget -->
             <div style="margin-top: 15px; padding-top: 15px; border-top: 2px solid rgba(255,255,255,0.2);">
                 <div class="widget-header" style="margin-bottom: 10px;">
-                    <span class="icon">📅</span>
                     <span>Next Lectures</span>
                 </div>
-                <div class="timetable-grid" id="timetable-grid">
-                    <div class="lecture">
-                        <div class="lecture-year">Loading...</div>
-                        <div class="lecture-time">--:--</div>
-                        <div class="lecture-name">Please wait</div>
-                        <div class="lecture-room">Room ---</div>
+                <div class="transport-header">
+                    <div>Time</div>
+                    <div>Course</div>
+                    <div>Room</div>
+                </div>
+                <div class="timetable-list" id="timetable-list">
+                    <div class="transport-item">
+                        <span>--:--</span>
+                        <span>Loading...</span>
+                        <span>---</span>
                     </div>
                 </div>
             </div>
@@ -703,21 +708,20 @@
                 const data = await response.json();
                 
                 if (data.success && data.lectures.length > 0) {
-                    const grid = document.getElementById('timetable-grid');
+                    const list = document.getElementById('timetable-list');
                     const now = new Date();
                     const currentTime = now.getHours() * 60 + now.getMinutes();
                     
-                    grid.innerHTML = data.lectures.map(lecture => {
+                    list.innerHTML = data.lectures.map(lecture => {
                         const [hours, minutes] = lecture.time.split(':').map(Number);
                         const lectureTime = hours * 60 + minutes;
                         const isNow = Math.abs(lectureTime - currentTime) < 30; // Within 30 minutes
                         
                         return `
-                            <div class="lecture ${isNow ? 'now' : ''}">
-                                <div class="lecture-year">${lecture.year}</div>
-                                <div class="lecture-time">${lecture.time}</div>
-                                <div class="lecture-name">${lecture.name}</div>
-                                <div class="lecture-room">📍 ${lecture.room}</div>
+                            <div class="transport-item ${isNow ? 'now' : ''}">
+                                <span class="timetable-time">${lecture.time}</span>
+                                <span class="timetable-course">${lecture.year} - ${lecture.name}</span>
+                                <span class="timetable-room">${lecture.room}</span>
                             </div>
                         `;
                     }).join('');
