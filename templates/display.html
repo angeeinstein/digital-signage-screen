@@ -233,53 +233,74 @@
         .transport-list {
             display: flex;
             flex-direction: column;
-            gap: 6px;
+            gap: 5px;
         }
         
         .transport-item {
             background: rgba(105, 255, 255, 0.15);
-            padding: 8px 12px;
-            border-radius: 6px;
+            padding: 6px 10px;
+            border-radius: 5px;
             display: flex;
-            justify-content: space-between;
             align-items: center;
+            gap: 10px;
+            font-size: 14px;
+        }
+        
+        .transport-mode {
+            font-size: 18px;
+            width: 25px;
+            text-align: center;
         }
         
         .transport-line {
             font-weight: bold;
-            font-size: 16px;
-            padding: 3px 8px;
+            font-size: 15px;
+            padding: 2px 8px;
             border-radius: 4px;
             background: rgba(255, 255, 255, 0.2);
-            display: inline-block;
+            min-width: 30px;
+            text-align: center;
         }
         
         .transport-direction {
-            font-size: 13px;
-            margin-top: 3px;
-            opacity: 0.9;
+            flex: 1;
+            font-size: 14px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
         
         .transport-time {
-            font-size: 17px;
+            font-size: 15px;
             font-weight: bold;
-            display: flex;
-            align-items: center;
-            gap: 5px;
+            min-width: 45px;
+            text-align: right;
         }
         
-        .realtime-indicator {
-            width: 8px;
-            height: 8px;
-            border-radius: 50%;
-            background: #ff4444;
-            display: inline-block;
-            animation: pulse 2s infinite;
+        .transport-countdown {
+            font-size: 13px;
+            min-width: 35px;
+            text-align: right;
+            opacity: 0.9;
         }
         
-        @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.5; }
+        .transport-status {
+            font-size: 11px;
+            padding: 2px 6px;
+            border-radius: 3px;
+            text-transform: uppercase;
+            font-weight: bold;
+            letter-spacing: 0.5px;
+        }
+        
+        .transport-status.live {
+            background: rgba(255, 68, 68, 0.3);
+            color: #ff4444;
+        }
+        
+        .transport-status.planned {
+            background: rgba(255, 255, 255, 0.15);
+            color: rgba(255, 255, 255, 0.7);
         }
         
         /* Timetable */
@@ -613,16 +634,42 @@
                 
                 if (data.success && data.departures.length > 0) {
                     const list = document.getElementById('transport-list');
+                    
+                    // Function to calculate countdown
+                    const getCountdown = (timestamp) => {
+                        const now = new Date();
+                        const departure = new Date(timestamp);
+                        const diffMs = departure - now;
+                        const diffMins = Math.floor(diffMs / 60000);
+                        
+                        if (diffMins < 0) return 'now';
+                        if (diffMins === 0) return 'now';
+                        if (diffMins < 60) return diffMins + 'm';
+                        const hours = Math.floor(diffMins / 60);
+                        const mins = diffMins % 60;
+                        return hours + 'h ' + mins + 'm';
+                    };
+                    
+                    // Function to get mode icon
+                    const getModeIcon = (mode) => {
+                        const m = mode.toLowerCase();
+                        if (m.includes('tram')) return '🚊';
+                        if (m.includes('bus')) return '🚌';
+                        if (m.includes('train') || m.includes('rail')) return '🚆';
+                        if (m.includes('metro') || m.includes('subway')) return '🚇';
+                        return '🚌'; // default to bus
+                    };
+                    
                     list.innerHTML = data.departures.map(dep => `
                         <div class="transport-item">
-                            <div style="flex: 1;">
-                                <div class="transport-line">${dep.line}</div>
-                                <div class="transport-direction">${dep.direction}</div>
-                            </div>
-                            <div class="transport-time">
-                                ${dep.is_realtime ? '<span class="realtime-indicator"></span>' : ''}
-                                ${dep.time}
-                            </div>
+                            <span class="transport-mode">${getModeIcon(dep.mode)}</span>
+                            <span class="transport-line">${dep.line}</span>
+                            <span class="transport-direction">${dep.direction}</span>
+                            <span class="transport-countdown">${getCountdown(dep.timestamp)}</span>
+                            <span class="transport-time">${dep.time}</span>
+                            <span class="transport-status ${dep.is_realtime ? 'live' : 'planned'}">
+                                ${dep.is_realtime ? 'live' : 'plan'}
+                            </span>
                         </div>
                     `).join('');
                 }

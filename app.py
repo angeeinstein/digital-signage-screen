@@ -554,12 +554,16 @@ def get_trias_departures(stop_id, limit=10):
         for stop_event in root.findall('.//trias:StopEvent', TRIAS_NAMESPACES):
             line_elem = stop_event.find('.//trias:PublishedLineName/trias:Text', TRIAS_NAMESPACES)
             dest_elem = stop_event.find('.//trias:DestinationText/trias:Text', TRIAS_NAMESPACES)
+            mode_elem = stop_event.find('.//trias:Mode/trias:PtMode', TRIAS_NAMESPACES)
             timetabled_elem = stop_event.find('.//trias:TimetabledTime', TRIAS_NAMESPACES)
             estimated_elem = stop_event.find('.//trias:EstimatedTime', TRIAS_NAMESPACES)
             
             # Use estimated time if available, otherwise timetabled
             departure_time = estimated_elem.text if estimated_elem is not None else (timetabled_elem.text if timetabled_elem is not None else None)
             is_realtime = estimated_elem is not None
+            
+            # Get mode (bus, tram, etc.)
+            mode = mode_elem.text if mode_elem is not None else 'bus'
             
             if departure_time:
                 # Parse ISO timestamp and format as HH:MM
@@ -573,6 +577,8 @@ def get_trias_departures(stop_id, limit=10):
                     'line': line_elem.text if line_elem is not None else 'N/A',
                     'direction': dest_elem.text if dest_elem is not None else 'N/A',
                     'time': time_str,
+                    'timestamp': departure_time,  # Full ISO timestamp for countdown
+                    'mode': mode,  # bus, tram, etc.
                     'is_realtime': is_realtime
                 })
         
