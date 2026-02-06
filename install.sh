@@ -298,18 +298,45 @@ setup_systemd_service() {
 configure_nginx() {
     print_header "Configuring Nginx (Optional)"
     
+    # Check if nginx is already installed
+    local nginx_installed=false
+    if command -v nginx &> /dev/null; then
+        nginx_installed=true
+    fi
+    
     # Ask user if they want nginx
     print_info "Nginx can act as a reverse proxy for additional features."
-    echo "Do you want to configure Nginx? (y/n)"
+    if [[ "$nginx_installed" == true ]]; then
+        print_info "Nginx is already installed on this system."
+    fi
+    echo "Do you want to use Nginx as a reverse proxy? (y/n)"
     read -p "Choice: " use_nginx < /dev/tty
     
     if [[ "$use_nginx" != "y" ]] && [[ "$use_nginx" != "Y" ]]; then
-        print_info "Skipping Nginx configuration"
+        print_info "Not using Nginx"
+        
+        # If nginx is installed, disable it or disable our site
+        if [[ "$nginx_installed" == true ]]; then
+            print_info "Disabling Digital Signage nginx configuration..."
+            rm -f "/etc/nginx/sites-enabled/$SERVICE_NAME"
+            rm -f "/etc/nginx/sites-enabled/default"
+            
+            # Stop nginx if it's running on port 80
+            if systemctl is-active --quiet nginx; then
+                print_info "Stopping nginx to free port 80..."
+                systemctl stop nginx
+                systemctl disable nginx
+            fi
+        fi
+        
+        # Ensure gunicorn uses port 80
+        sed -i 's/bind = "127.0.0.1:5000"/bind = "0.0.0.0:80"/' "$INSTALL_DIR/gunicorn_config.py" 2>/dev/null || true
+        
         return
     fi
     
-    # Check if nginx is installed
-    if ! command -v nginx &> /dev/null; then
+    # User wants nginx - install if needed
+    if [[ "$nginx_installed" == false ]]; then
         print_info "Installing Nginx..."
         apt-get install -y nginx || {
             print_warning "Failed to install Nginx, skipping"
@@ -318,9 +345,11 @@ configure_nginx() {
     fi
     
     # Remove default nginx site to avoid conflicts
+    print_info "Removing default nginx configuration..."
     rm -f /etc/nginx/sites-enabled/default
     
     # Create nginx config for port 80 (main access)
+    print_info "Creating nginx configuration..."
     cat > "/etc/nginx/sites-available/$SERVICE_NAME" << 'EOF'
 server {
     listen 80;
@@ -340,6 +369,7 @@ server {
 EOF
     
     # Update gunicorn to use port 5000 when nginx is enabled
+    print_info "Configuring Gunicorn to use port 5000..."
     sed -i 's/bind = "0.0.0.0:80"/bind = "127.0.0.1:5000"/' "$INSTALL_DIR/gunicorn_config.py"
     
     # Enable site
@@ -348,6 +378,7 @@ EOF
     fi
     
     # Test nginx config
+    print_info "Testing nginx configuration..."
     nginx -t &>/dev/null || {
         print_warning "Nginx configuration test failed, reverting"
         rm -f "/etc/nginx/sites-enabled/$SERVICE_NAME"
@@ -355,8 +386,9 @@ EOF
         return
     }
     
-    # Reload nginx
-    systemctl reload nginx || print_warning "Failed to reload nginx"
+    # Enable and start nginx
+    systemctl enable nginx
+    systemctl restart nginx || print_warning "Failed to restart nginx"
     
     print_success "Nginx configured (serving on port 80)"
 }
