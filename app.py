@@ -239,6 +239,24 @@ def get_nearest_flights():
         lon_min = lon - lon_delta
         lon_max = lon + lon_delta
         
+        # Airline code to name mapping
+        airline_names = {
+            'AA': 'American Airlines', 'DL': 'Delta', 'UA': 'United', 'WN': 'Southwest',
+            'BA': 'British Airways', 'LH': 'Lufthansa', 'AF': 'Air France', 'KL': 'KLM',
+            'EK': 'Emirates', 'QR': 'Qatar Airways', 'SQ': 'Singapore Airlines',
+            'LX': 'Swiss', 'OS': 'Austrian', 'SN': 'Brussels Airlines', 'TP': 'TAP Portugal',
+            'IB': 'Iberia', 'AZ': 'ITA Airways', 'SK': 'SAS', 'AY': 'Finnair',
+            'FR': 'Ryanair', 'U2': 'easyJet', 'W6': 'Wizz Air', 'VY': 'Vueling',
+            '6E': 'IndiGo', 'QF': 'Qantas', 'NZ': 'Air New Zealand', 'AC': 'Air Canada',
+            'NH': 'ANA', 'JL': 'JAL', 'CX': 'Cathay Pacific', 'TK': 'Turkish Airlines',
+            'ET': 'Ethiopian', 'SA': 'South African', 'EY': 'Etihad', 'SV': 'Saudia',
+            'AI': 'Air India', 'TG': 'Thai Airways', 'MH': 'Malaysia Airlines',
+            'GA': 'Garuda', 'PR': 'Philippine Airlines', 'VN': 'Vietnam Airlines',
+            'CA': 'Air China', 'MU': 'China Eastern', 'CZ': 'China Southern',
+            'AM': 'Aeromexico', 'CM': 'Copa Airlines', 'LA': 'LATAM', 'AR': 'Aerolineas',
+            'AV': 'Avianca', 'G3': 'Gol', 'JJ': 'LATAM Brasil'
+        }
+        
         # Call AirLabs API
         bbox = f"{lat_min:.2f},{lon_min:.2f},{lat_max:.2f},{lon_max:.2f}"
         url = f"https://airlabs.co/api/v9/flights?api_key={api_key}&bbox={bbox}"
@@ -271,10 +289,14 @@ def get_nearest_flights():
             c = 2 * math.asin(math.sqrt(a))
             distance = 6371 * c  # Earth radius in km
             
+            airline_code = flight.get('airline_iata', '')
+            airline_name = airline_names.get(airline_code, airline_code)
+            
             nearby_flights.append({
                 'callsign': flight.get('flight_icao') or flight.get('flight_iata') or flight.get('reg_number', 'Unknown'),
                 'flight_number': flight.get('flight_iata', ''),
-                'airline': flight.get('airline_iata', ''),
+                'airline': airline_code,
+                'airline_name': airline_name,
                 'aircraft_type': flight.get('aircraft_icao', ''),
                 'hex': flight.get('hex', ''),
                 'altitude': int(flight.get('alt', 0) * 3.28084) if flight.get('alt') else 0,  # Convert m to ft
