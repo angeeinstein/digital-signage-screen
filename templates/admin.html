@@ -323,17 +323,21 @@
                 </p>
                 
                 <div class="form-group">
-                    <label for="openskyUsername">OpenSky Username (Optional)</label>
-                    <input type="text" id="openskyUsername" placeholder="Leave empty for anonymous access">
+                    <label for="openskyClientId">OpenSky API Client ID (Optional)</label>
+                    <input type="text" id="openskyClientId" placeholder="Leave empty for anonymous access (400 credits/day)">
                     <div class="help-text">
-                        <strong>Optional:</strong> Create free account at <a href="https://opensky-network.org/register" target="_blank">opensky-network.org</a><br>
-                        Benefits: Higher rate limits (4,000 → 8,000 credits/day), historical data access
+                        <strong>To get credentials:</strong><br>
+                        1. Create account at <a href="https://opensky-network.org/register" target="_blank">opensky-network.org</a><br>
+                        2. Go to <a href="https://opensky-network.org/my-opensky/account" target="_blank">Account page</a><br>
+                        3. Create new API Client and copy Client ID<br>
+                        <strong>Benefits:</strong> 4,000-8,000 credits/day (vs 400 anonymous)
                     </div>
                 </div>
                 
                 <div class="form-group">
-                    <label for="openskyPassword">OpenSky Password (Optional)</label>
-                    <input type="password" id="openskyPassword" placeholder="Leave empty for anonymous access">
+                    <label for="openskyClientSecret">OpenSky API Client Secret (Optional)</label>
+                    <input type="password" id="openskyClientSecret" placeholder="Leave empty for anonymous access">
+                    <div class="help-text">Copy from API Client page - keep this secret!</div>
                 </div>
                 
                 <div class="form-group">
@@ -438,8 +442,8 @@
                     
                     // OpenSky
                     document.getElementById('openskyEnabled').checked = config.opensky?.enabled !== false;
-                    document.getElementById('openskyUsername').value = config.opensky?.username || '';
-                    document.getElementById('openskyPassword').value = config.opensky?.password || '';
+                    document.getElementById('openskyClientId').value = config.opensky?.client_id || '';
+                    document.getElementById('openskyClientSecret').value = config.opensky?.client_secret || '';
                     document.getElementById('cacheExpiry').value = config.opensky?.cache_days || 7;
                     
                     // Transport
@@ -477,8 +481,8 @@
                     },
                     opensky: {
                         enabled: document.getElementById('openskyEnabled').checked,
-                        username: document.getElementById('openskyUsername').value,
-                        password: document.getElementById('openskyPassword').value,
+                        client_id: document.getElementById('openskyClientId').value,
+                        client_secret: document.getElementById('openskyClientSecret').value,
                         cache_days: parseInt(document.getElementById('cacheExpiry').value) || 7
                     },
                     transport: {

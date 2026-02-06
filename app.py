@@ -51,8 +51,8 @@ DEFAULT_DASHBOARD_CONFIG = {
         'radius_km': 75  # Radius for nearby flights in km
     },
     'opensky': {
-        'username': '',  # OpenSky Network username (optional, increases rate limit)
-        'password': '',  # OpenSky Network password
+        'client_id': '',  # OpenSky API Client ID (optional, increases rate limit)
+        'client_secret': '',  # OpenSky API Client Secret
         'enabled': True,  # Enable automatic route lookup
         'cache_days': 7  # Days to cache route data before refresh
     },
@@ -165,6 +165,45 @@ def update_route_cache(callsign, from_airport, to_airport, cache):
     save_flight_routes_cache(cache)
 
 
+# OAuth2 token cache
+_opensky_token_cache = {'token': None, 'expires_at': 0}
+
+def get_opensky_token(client_id, client_secret):
+    """Get OAuth2 access token for OpenSky API (cached for 30 minutes)"""
+    global _opensky_token_cache
+    
+    # Check if cached token is still valid
+    if _opensky_token_cache['token'] and time.time() < _opensky_token_cache['expires_at']:
+        return _opensky_token_cache['token']
+    
+    try:
+        token_url = "https://auth.opensky-network.org/auth/realms/opensky-network/protocol/openid-connect/token"
+        data = {
+            'grant_type': 'client_credentials',
+            'client_id': client_id,
+            'client_secret': client_secret
+        }
+        
+        response = requests.post(token_url, data=data, timeout=10)
+        if response.status_code == 200:
+            token_data = response.json()
+            token = token_data.get('access_token')
+            expires_in = token_data.get('expires_in', 1800)  # Default 30 minutes
+            
+            # Cache token (refresh 1 minute before expiry)
+            _opensky_token_cache['token'] = token
+            _opensky_token_cache['expires_at'] = time.time() + expires_in - 60
+            
+            logger.info("OpenSky: OAuth2 token obtained successfully")
+            return token
+        else:
+            logger.error(f"OpenSky: Failed to get OAuth2 token: {response.status_code}")
+            return None
+    except Exception as e:
+        logger.error(f"OpenSky: Error getting OAuth2 token: {e}")
+        return None
+
+
 def fetch_route_from_opensky(icao24, config):
     """Fetch flight route from OpenSky Network API"""
     try:
@@ -172,8 +211,8 @@ def fetch_route_from_opensky(icao24, config):
         if not opensky_config.get('enabled', True):
             return None, None
         
-        username = opensky_config.get('username', '').strip()
-        password = opensky_config.get('password', '').strip()
+        client_id = opensky_config.get('client_id', '').strip()
+        client_secret = opensky_config.get('client_secret', '').strip()
         
         # Query recent flights for this aircraft (last 7 days)
         end_time = int(time.time())
@@ -181,12 +220,15 @@ def fetch_route_from_opensky(icao24, config):
         
         url = f"https://opensky-network.org/api/flights/aircraft?icao24={icao24.lower()}&begin={begin_time}&end={end_time}"
         
-        # Add authentication if provided
-        auth = None
-        if username and password:
-            auth = (username, password)
+        # Prepare headers
+        headers = {}
+        if client_id and client_secret:
+            # Use OAuth2 token for authenticated requests
+            token = get_opensky_token(client_id, client_secret)
+            if token:
+                headers['Authorization'] = f'Bearer {token}'
         
-        response = requests.get(url, auth=auth, timeout=10)
+        response = requests.get(url, headers=headers, timeout=10)
         
         if response.status_code == 200:
             flights = response.json()
