@@ -121,40 +121,6 @@
             font-size: 32px;
         }
         
-        .aircraft-icon {
-            width: 70px;
-            height: 50px;
-            background: linear-gradient(135deg, rgba(52, 152, 219, 0.3), rgba(41, 128, 185, 0.4));
-            border: 2px solid rgba(52, 152, 219, 0.6);
-            border-radius: 8px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            position: relative;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
-        }
-        
-        .aircraft-icon::before {
-            content: '✈️';
-            font-size: 24px;
-            opacity: 0.3;
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-        }
-        
-        .aircraft-type-label {
-            font-size: 11px;
-            font-weight: bold;
-            color: rgba(255, 255, 255, 0.95);
-            text-shadow: 0 1px 2px rgba(0,0,0,0.5);
-            position: relative;
-            z-index: 1;
-            letter-spacing: 0.5px;
-        }
-        
         .flight-number-col {
             font-weight: bold;
             font-size: 20px;
@@ -488,9 +454,7 @@
                         </div>
                         ${data.flights.map(flight => `
                             <div class="flight-item">
-                                <div class="aircraft-icon">
-                                    <div class="aircraft-type-label">${flight.aircraft_type || '?'}</div>
-                                </div>
+                                <div class="flight-icon">✈️</div>
                                 <div class="flight-number-col">${flight.flight_number || flight.callsign}</div>
                                 <div class="flight-airline-col">${flight.airline_name || flight.airline || ''}</div>
                                 <div class="flight-route-col">${flight.from || '?'} → ${flight.to || '?'}</div>
