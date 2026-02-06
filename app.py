@@ -273,7 +273,15 @@ def search_trias_stops(query, limit=20):
         
         # Log the raw response for debugging
         logger.info(f"TRIAS search for '{query}' - Response status: {response.status_code}")
-        logger.info(f"TRIAS full response:\n{response.text}")
+        
+        # Save response to file for debugging
+        debug_file = f"/tmp/trias_response_{query.replace(' ', '_')}.xml"
+        try:
+            with open(debug_file, 'w', encoding='utf-8') as f:
+                f.write(response.text)
+            logger.info(f"Response saved to {debug_file}")
+        except:
+            pass
         
         # Parse XML response
         root = ET.fromstring(response.content)
