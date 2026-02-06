@@ -102,6 +102,20 @@
             overflow-y: auto;
         }
         
+        .flight-header {
+            display: grid;
+            grid-template-columns: 40px 130px 180px 140px 100px 140px 130px 100px;
+            align-items: center;
+            gap: 15px;
+            padding: 8px 12px;
+            font-size: 12px;
+            opacity: 0.6;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+            margin-bottom: 8px;
+        }
+        
         .flight-item {
             display: grid;
             grid-template-columns: 40px 130px 180px 140px 100px 140px 130px 100px;
@@ -449,21 +463,40 @@
                     const container = document.getElementById('nearest-flights');
                     container.style.display = 'block';
                     container.innerHTML = `
-                        <div style="font-weight: bold; font-size: 20px; margin-bottom: 15px; border-bottom: 2px solid rgba(255,255,255,0.3); padding-bottom: 10px;">
-                            Nearest Flights
+                        <div class="flight-header">
+                            <div></div>
+                            <div>Flight</div>
+                            <div>Airline</div>
+                            <div>Route</div>
+                            <div>Aircraft</div>
+                            <div>Altitude</div>
+                            <div>Speed</div>
+                            <div>Distance</div>
                         </div>
-                        ${data.flights.map(flight => `
+                        ${data.flights.map(flight => {
+                            // Build route display - show nothing if both are empty
+                            let routeDisplay = '';
+                            if (flight.from && flight.to) {
+                                routeDisplay = `${flight.from} → ${flight.to}`;
+                            } else if (flight.from) {
+                                routeDisplay = `${flight.from} → `;
+                            } else if (flight.to) {
+                                routeDisplay = ` → ${flight.to}`;
+                            }
+                            
+                            return `
                             <div class="flight-item">
                                 <div class="flight-icon">✈️</div>
                                 <div class="flight-number-col">${flight.flight_number || flight.callsign}</div>
                                 <div class="flight-airline-col">${flight.airline_name || flight.airline || ''}</div>
-                                <div class="flight-route-col">${flight.from || '?'} → ${flight.to || '?'}</div>
+                                <div class="flight-route-col">${routeDisplay}</div>
                                 <div class="flight-aircraft-col">${flight.aircraft_type || ''}</div>
                                 <div class="flight-altitude-col">📏 ${flight.altitude} ft</div>
                                 <div class="flight-speed-col">⚡ ${flight.speed} kts</div>
                                 <div class="flight-distance-col">${flight.distance} km</div>
                             </div>
-                        `).join('')}
+                            `;
+                        }).join('')}
                     `;
                 } else {
                     // Hide the nearest flights section when not available
