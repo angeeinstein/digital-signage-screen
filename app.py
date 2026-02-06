@@ -207,58 +207,15 @@ def get_transport():
 def get_nearest_flights():
     """Get nearest flights from ADS-B Exchange"""
     try:
-        config = load_dashboard_config()
-        lat = config.get('location', {}).get('lat', 50.0)
-        lon = config.get('location', {}).get('lon', 8.0)
+        # Note: ADS-B Exchange public API now requires authentication
+        # For now, return empty list. The map view shows flights visually.
+        # To enable this feature, you would need an ADS-B Exchange API key
         
-        # ADS-B Exchange API - using public API
-        # Note: This is a simplified version. For production, consider API rate limits
-        url = f"https://globe.adsbexchange.com/api/aircraft.php"
-        
-        try:
-            response = requests.get(url, timeout=5)
-            if response.status_code == 200:
-                data = response.json()
-                aircraft_list = data.get('aircraft', [])
-                
-                # Calculate distance and filter nearby aircraft
-                import math
-                nearby_flights = []
-                
-                for aircraft in aircraft_list:
-                    if 'lat' not in aircraft or 'lon' not in aircraft:
-                        continue
-                    
-                    # Calculate distance using Haversine formula
-                    lat1, lon1 = math.radians(lat), math.radians(lon)
-                    lat2, lon2 = math.radians(aircraft['lat']), math.radians(aircraft['lon'])
-                    
-                    dlat = lat2 - lat1
-                    dlon = lon2 - lon1
-                    
-                    a = math.sin(dlat/2)**2 + math.cos(lat1) * math.cos(lat2) * math.sin(dlon/2)**2
-                    c = 2 * math.asin(math.sqrt(a))
-                    distance = 6371 * c  # Earth radius in km
-                    
-                    if distance < 150:  # Within 150km
-                        nearby_flights.append({
-                            'callsign': aircraft.get('flight', '').strip() or aircraft.get('r', 'Unknown'),
-                            'hex': aircraft.get('hex', ''),
-                            'altitude': aircraft.get('alt_baro', 0),
-                            'speed': aircraft.get('gs', 0),
-                            'distance': round(distance, 1)
-                        })
-                
-                # Sort by distance and get nearest 2
-                nearby_flights.sort(key=lambda x: x['distance'])
-                nearest_two = nearby_flights[:2]
-                
-                return jsonify({'success': True, 'flights': nearest_two})
-        except:
-            pass
-        
-        # Fallback to empty list if API fails
-        return jsonify({'success': True, 'flights': []})
+        return jsonify({
+            'success': True, 
+            'flights': [],
+            'message': 'API requires authentication - view flights on the map'
+        })
         
     except Exception as e:
         logger.error(f"Error fetching nearest flights: {e}")
