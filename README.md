@@ -45,7 +45,7 @@ The script will:
 - Set up Python virtual environment
 - Install Python dependencies
 - Configure systemd service
-- Set up Nginx reverse proxy
+- **Optionally** set up Nginx reverse proxy (asks during install)
 - Configure permissions
 - Start the service automatically
 
@@ -54,7 +54,8 @@ The script will:
 Once installed, access your digital signage at:
 - **Main Display**: `http://<raspberry-pi-ip>/`
 - **Admin Panel**: `http://<raspberry-pi-ip>/admin`
-- **Alternative Port**: `http://<raspberry-pi-ip>:8080` (via Nginx)
+
+**Note**: The installer will show you the exact IP address at the end.
 
 ## Installation Script Features
 
@@ -66,6 +67,7 @@ The `install.sh` script handles everything automatically:
 - Sets up Python virtual environment
 - Configures systemd service
 - Fixes all permissions
+- **Asks if you want Nginx** (optional reverse proxy)
 - Handles port 80 binding without root
 
 ### Existing Installation Detected
@@ -277,7 +279,48 @@ This removes:
 - Consider firewall rules for production use
 
 ## Customization
+Using Nginx (Recommended for Production)
 
+If you didn't enable Nginx during installation, you can add it later:
+
+```bash
+# Install nginx
+sudo apt install -y nginx
+
+# Create config
+sudo nano /etc/nginx/sites-available/digital-signage
+```
+
+Add:
+```nginx
+server {
+    listen 80;
+    server_name _;
+
+    location / {
+        proxy_pass http://127.0.0.1:5000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    }
+}
+```
+
+Enable and restart:
+```bash
+# Update gunicorn to use port 5000
+sudo nano /opt/digital-signage/gunicorn_config.py
+# Change: bind = "127.0.0.1:5000"
+
+# Enable nginx site
+sudo ln -s /etc/nginx/sites-available/digital-signage /etc/nginx/sites-enabled/
+sudo rm /etc/nginx/sites-enabled/default
+sudo nginx -t
+sudo systemctl reload nginx
+sudo systemctl restart digital-signage
+```
+
+### 
 ### Change Port
 Edit `gunicorn_config.py`:
 ```python

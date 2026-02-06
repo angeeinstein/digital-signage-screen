@@ -44,6 +44,7 @@ This single command will:
 - Install all dependencies
 - Clone from GitHub
 - Configure services
+- **Ask if you want Nginx** (optional)
 - Start the application
 
 **Or clone and run locally:**

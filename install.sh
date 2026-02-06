@@ -136,7 +136,6 @@ install_system_packages() {
         build-essential \
         git \
         curl \
-        nginx \
         || {
         print_error "Failed to install system packages"
         exit 1
@@ -297,40 +296,69 @@ setup_systemd_service() {
 }
 
 configure_nginx() {
-    print_header "Configuring Nginx (Optional Reverse Proxy)"
+    print_header "Configuring Nginx (Optional)"
     
-    # Create nginx config
+    # Ask user if they want nginx
+    print_info "Nginx can act as a reverse proxy for additional features."
+    echo "Do you want to configure Nginx? (y/n)"
+    read -p "Choice: " use_nginx < /dev/tty
+    
+    if [[ "$use_nginx" != "y" ]] && [[ "$use_nginx" != "Y" ]]; then
+        print_info "Skipping Nginx configuration"
+        return
+    fi
+    
+    # Check if nginx is installed
+    if ! command -v nginx &> /dev/null; then
+        print_info "Installing Nginx..."
+        apt-get install -y nginx || {
+            print_warning "Failed to install Nginx, skipping"
+            return
+        }
+    fi
+    
+    # Remove default nginx site to avoid conflicts
+    rm -f /etc/nginx/sites-enabled/default
+    
+    # Create nginx config for port 80 (main access)
     cat > "/etc/nginx/sites-available/$SERVICE_NAME" << 'EOF'
 server {
-    listen 8080;
+    listen 80;
     server_name _;
 
     location / {
-        proxy_pass http://127.0.0.1:80;
+        proxy_pass http://127.0.0.1:5000;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
     }
 }
 EOF
     
-    # Enable site (if not already enabled)
+    # Update gunicorn to use port 5000 when nginx is enabled
+    sed -i 's/bind = "0.0.0.0:80"/bind = "127.0.0.1:5000"/' "$INSTALL_DIR/gunicorn_config.py"
+    
+    # Enable site
     if [[ ! -L "/etc/nginx/sites-enabled/$SERVICE_NAME" ]]; then
         ln -s "/etc/nginx/sites-available/$SERVICE_NAME" "/etc/nginx/sites-enabled/$SERVICE_NAME"
     fi
     
     # Test nginx config
     nginx -t &>/dev/null || {
-        print_warning "Nginx configuration test failed, skipping nginx setup"
+        print_warning "Nginx configuration test failed, reverting"
         rm -f "/etc/nginx/sites-enabled/$SERVICE_NAME"
+        sed -i 's/bind = "127.0.0.1:5000"/bind = "0.0.0.0:80"/' "$INSTALL_DIR/gunicorn_config.py"
         return
     }
     
     # Reload nginx
     systemctl reload nginx || print_warning "Failed to reload nginx"
     
-    print_success "Nginx configured (available on port 8080)"
+    print_success "Nginx configured (serving on port 80)"
 }
 
 set_permissions() {
@@ -596,12 +624,25 @@ perform_installation() {
     echo ""
     print_success "Digital Signage is now running!"
     echo ""
-    echo "Access the display at:"
-    echo "  - http://$(hostname -I | awk '{print $1}'):80"
-    echo "  - http://$(hostname -I | awk '{print $1}'):8080 (via Nginx)"
+    
+    # Detect which port to show
+    local port=80
+    if grep -q "127.0.0.1:5000" "$INSTALL_DIR/gunicorn_config.py" 2>/dev/null; then
+        port=80
+        echo "Access the display at (via Nginx):"
+    else
+        port=80
+        echo "Access the display at:"
+    fi
+    
+    local ip=$(hostname -I | awk '{print $1}')
+    echo "  - http://${ip}"
+    if [[ "$port" == "80" ]]; then
+        echo "  - http://${ip}:80"
+    fi
     echo ""
     echo "Admin panel at:"
-    echo "  - http://$(hostname -I | awk '{print $1}'):80/admin"
+    echo "  - http://${ip}/admin"
     echo ""
     echo "Service management:"
     echo "  - Start:   sudo systemctl start $SERVICE_NAME"
