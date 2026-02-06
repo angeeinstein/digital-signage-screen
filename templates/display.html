@@ -194,34 +194,31 @@
         .weather {
             display: flex;
             flex-direction: column;
-            gap: 15px;
+            gap: 10px;
         }
         
         .weather-current {
             display: flex;
             align-items: center;
-            gap: 20px;
+            gap: 15px;
         }
         
         .weather-temp {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
+            font-size: 40px;
+            font-weight: bold;
         }
         
-        .transport-line {
-            font-weight: bold;
-            font-size: 18px;
-            padding: 5px 10px;
-            border-radius: 0;
+        .weather-details {
+            display: grid;
             grid-template-columns: 1fr 1fr;
-            gap: 12px;
+            gap: 8px 15px;
         }
         
         .weather-detail {
             display: flex;
             align-items: center;
-            gap: 10px;
+            gap: 8px;
+            font-size: 15px;
         }
         
         /* Transport */
@@ -398,27 +395,27 @@
                 <span>Weather</span>
             </div>
             <div class="weather-current">
-                <div class="weather-icon" id="weather-icon">🌤️</div>
+                <div class="weather-icon" id="weather-icon" style="font-size: 50px;">🌤️</div>
                 <div>
                     <div class="weather-temp" id="weather-temp">--°C</div>
-                    <div id="weather-condition" style="font-size: 18px;">Loading...</div>
+                    <div id="weather-condition" style="font-size: 16px; opacity: 0.9;">Loading...</div>
                 </div>
             </div>
             <div class="weather-details">
                 <div class="weather-detail">
-                    <span style="font-size: 20px;">💨</span>
+                    <span style="font-size: 18px;">💨</span>
                     <span id="weather-wind">-- km/h</span>
                 </div>
                 <div class="weather-detail">
-                    <span style="font-size: 20px;">💧</span>
+                    <span style="font-size: 18px;">💧</span>
                     <span id="weather-humidity">--%</span>
                 </div>
                 <div class="weather-detail">
-                    <span style="font-size: 20px;">🌡️</span>
+                    <span style="font-size: 18px;">🌡️</span>
                     <span id="weather-pressure">-- hPa</span>
                 </div>
                 <div class="weather-detail">
-                    <span style="font-size: 20px;">👁️</span>
+                    <span style="font-size: 18px;">👁️</span>
                     <span id="weather-visibility">-- km</span>
                 </div>
             </div>
