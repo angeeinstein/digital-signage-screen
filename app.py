@@ -256,6 +256,9 @@ def search_trias_stops(query, limit=20):
     xml_declaration = b'<?xml version="1.0" encoding="UTF-8"?>\n'
     xml_request = (xml_declaration + xml_string).decode('utf-8')
     
+    # Log the actual XML request being sent
+    logger.info(f"TRIAS XML Request:\n{xml_request}")
+    
     try:
         response = requests.post(
             TRIAS_API_URL,
