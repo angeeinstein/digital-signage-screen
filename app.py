@@ -41,6 +41,11 @@ DEFAULT_DASHBOARD_CONFIG = {
         'api_key': '',  # OpenWeatherMap API key
         'enabled': True
     },
+    'airlabs': {
+        'api_key': '',  # AirLabs API key
+        'enabled': True,
+        'radius_km': 75  # Radius for nearby flights in km
+    },
     'transport': {
         'enabled': False,
         'api_url': '',
@@ -205,21 +210,89 @@ def get_transport():
 
 @app.route('/api/dashboard/nearest-flights')
 def get_nearest_flights():
-    """Get nearest flights from ADS-B Exchange"""
+    """Get nearest flights from AirLabs"""
     try:
-        # Note: ADS-B Exchange public API now requires authentication
-        # For now, return empty list. The map view shows flights visually.
-        # To enable this feature, you would need an ADS-B Exchange API key
+        config = load_dashboard_config()
+        airlabs_config = config.get('airlabs', {})
         
-        return jsonify({
-            'success': True, 
-            'flights': [],
-            'message': 'API requires authentication - view flights on the map'
-        })
+        if not airlabs_config.get('enabled', True):
+            return jsonify({'success': True, 'flights': []})
         
+        api_key = airlabs_config.get('api_key', '').strip()
+        if not api_key:
+            return jsonify({'success': True, 'flights': [], 'message': 'AirLabs API key not configured'})
+        
+        # Get location
+        lat = config.get('location', {}).get('lat', 50.0)
+        lon = config.get('location', {}).get('lon', 8.0)
+        radius_km = airlabs_config.get('radius_km', 75)
+        
+        # Calculate bounding box (approximately)
+        # 1 degree latitude ≈ 111 km
+        # 1 degree longitude ≈ 111 km * cos(latitude)
+        import math
+        lat_delta = radius_km / 111.0
+        lon_delta = radius_km / (111.0 * math.cos(math.radians(lat)))
+        
+        lat_min = lat - lat_delta
+        lat_max = lat + lat_delta
+        lon_min = lon - lon_delta
+        lon_max = lon + lon_delta
+        
+        # Call AirLabs API
+        bbox = f"{lat_min:.2f},{lon_min:.2f},{lat_max:.2f},{lon_max:.2f}"
+        url = f"https://airlabs.co/api/v9/flights?api_key={api_key}&bbox={bbox}"
+        
+        response = requests.get(url, timeout=10)
+        response.raise_for_status()
+        
+        data = response.json()
+        
+        if data.get('error'):
+            logger.error(f"AirLabs API error: {data.get('error', {}).get('message', 'Unknown error')}")
+            return jsonify({'success': False, 'flights': [], 'message': data.get('error', {}).get('message', 'API error')})
+        
+        flights_data = data.get('response', [])
+        
+        # Calculate distance and format flights
+        nearby_flights = []
+        for flight in flights_data:
+            if not flight.get('lat') or not flight.get('lng'):
+                continue
+            
+            # Calculate distance using Haversine formula
+            lat1, lon1 = math.radians(lat), math.radians(lon)
+            lat2, lon2 = math.radians(flight['lat']), math.radians(flight['lng'])
+            
+            dlat = lat2 - lat1
+            dlon = lon2 - lon1
+            
+            a = math.sin(dlat/2)**2 + math.cos(lat1) * math.cos(lat2) * math.sin(dlon/2)**2
+            c = 2 * math.asin(math.sqrt(a))
+            distance = 6371 * c  # Earth radius in km
+            
+            nearby_flights.append({
+                'callsign': flight.get('flight_icao') or flight.get('flight_iata') or flight.get('reg_number', 'Unknown'),
+                'hex': flight.get('hex', ''),
+                'altitude': int(flight.get('alt', 0) * 3.28084) if flight.get('alt') else 0,  # Convert m to ft
+                'speed': int(flight.get('speed', 0) * 1.94384) if flight.get('speed') else 0,  # Convert km/h to kts
+                'distance': round(distance, 1),
+                'from': flight.get('dep_iata', ''),
+                'to': flight.get('arr_iata', '')
+            })
+        
+        # Sort by distance and get nearest 2
+        nearby_flights.sort(key=lambda x: x['distance'])
+        nearest_two = nearby_flights[:2]
+        
+        return jsonify({'success': True, 'flights': nearest_two})
+        
+    except requests.exceptions.RequestException as e:
+        logger.error(f"Error fetching flights from AirLabs: {e}")
+        return jsonify({'success': False, 'flights': [], 'message': str(e)})
     except Exception as e:
         logger.error(f"Error fetching nearest flights: {e}")
-        return jsonify({'success': True, 'flights': []})
+        return jsonify({'success': False, 'flights': [], 'message': str(e)})
 
 
 @app.route('/api/dashboard/timetable')

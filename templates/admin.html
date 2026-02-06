@@ -285,6 +285,27 @@
             </div>
         </div>
         
+        <!-- AirLabs Flight Tracking -->
+        <div class="card">
+            <h2>✈️ Flight Tracking (AirLabs)</h2>
+            <div class="form-group checkbox-group">
+                <input type="checkbox" id="airlabsEnabled" checked>
+                <label for="airlabsEnabled">Enable Nearby Flights List</label>
+            </div>
+            <div class="form-group">
+                <label for="airlabsApiKey">AirLabs API Key</label>
+                <input type="text" id="airlabsApiKey" placeholder="Get free API key from airlabs.co">
+                <div class="help-text">
+                    Sign up at <a href="https://airlabs.co/signup" target="_blank">airlabs.co</a> - Free tier: 1,000 requests/month
+                </div>
+            </div>
+            <div class="form-group">
+                <label for="airlabsRadius">Search Radius (km)</label>
+                <input type="number" id="airlabsRadius" value="75" min="10" max="200" step="5">
+                <div class="help-text">How far to search for nearby flights (default: 75km)</div>
+            </div>
+        </div>
+        
         <!-- Transport Settings -->
         <div class="card">
             <h2>🚌 Public Transport Settings</h2>
@@ -359,6 +380,11 @@
                     document.getElementById('weatherEnabled').checked = config.weather?.enabled || false;
                     document.getElementById('weatherApiKey').value = config.weather?.api_key || '';
                     
+                    // AirLabs
+                    document.getElementById('airlabsEnabled').checked = config.airlabs?.enabled !== false;
+                    document.getElementById('airlabsApiKey').value = config.airlabs?.api_key || '';
+                    document.getElementById('airlabsRadius').value = config.airlabs?.radius_km || 75;
+                    
                     // Transport
                     document.getElementById('transportEnabled').checked = config.transport?.enabled || false;
                     document.getElementById('transportApiUrl').value = config.transport?.api_url || '';
@@ -386,6 +412,11 @@
                     weather: {
                         enabled: document.getElementById('weatherEnabled').checked,
                         api_key: document.getElementById('weatherApiKey').value
+                    },
+                    airlabs: {
+                        enabled: document.getElementById('airlabsEnabled').checked,
+                        api_key: document.getElementById('airlabsApiKey').value,
+                        radius_km: parseInt(document.getElementById('airlabsRadius').value) || 75
                     },
                     transport: {
                         enabled: document.getElementById('transportEnabled').checked,

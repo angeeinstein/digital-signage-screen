@@ -438,11 +438,12 @@
                 
                 if (data.success && data.flights && data.flights.length > 0) {
                     const container = document.getElementById('nearest-flights');
+                    container.style.display = 'block';
                     container.innerHTML = data.flights.map(flight => `
                         <div class="flight-item">
                             <div class="flight-icon">✈️</div>
                             <div class="flight-info">
-                                <div class="flight-number">${flight.callsign || flight.hex || 'Unknown'}</div>
+                                <div class="flight-number">${flight.callsign}</div>
                                 <div class="flight-route">${flight.altitude} ft · ${flight.speed} kts</div>
                             </div>
                             <div class="flight-distance">${flight.distance} km</div>
@@ -568,6 +569,7 @@
         setInterval(loadWeather, 300000); // 5 minutes
         setInterval(loadTransport, 60000); // 1 minute
         setInterval(loadTimetable, 60000); // 1 minute
+        setInterval(loadNearestFlights, 30000); // 30 seconds
     </script>
 </body>
 </html>
