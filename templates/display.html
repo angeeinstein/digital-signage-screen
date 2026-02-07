@@ -486,6 +486,7 @@
             transportStop: '',
             timetable: []
         };
+        let lastModified = null;
         
         // Update time and date
         function updateDateTime() {
@@ -513,10 +514,27 @@
                 const data = await response.json();
                 if (data.success) {
                     config = data.config;
+                    lastModified = config.last_modified;
                     initializeDashboard();
                 }
             } catch (error) {
                 console.error('Failed to load config:', error);
+            }
+        }
+        
+        // Check if config has been updated and reload if needed
+        async function checkForUpdates() {
+            try {
+                const response = await fetch('/api/dashboard/config');
+                const data = await response.json();
+                if (data.success && data.config.last_modified) {
+                    if (lastModified && data.config.last_modified !== lastModified) {
+                        console.log('Configuration updated, reloading page...');
+                        location.reload();
+                    }
+                }
+            } catch (error) {
+                console.error('Failed to check for updates:', error);
             }
         }
         
@@ -742,6 +760,7 @@
         setInterval(loadTransport, 60000); // 1 minute
         setInterval(loadTimetable, 60000); // 1 minute
         setInterval(loadNearestFlights, 15000); // 15 seconds - cached routes prevent rate limiting
+        setInterval(checkForUpdates, 30000); // Check for config updates every 30 seconds
     </script>
 </body>
 </html>

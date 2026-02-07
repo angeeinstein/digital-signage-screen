@@ -187,6 +187,9 @@ def load_dashboard_config():
 def save_dashboard_config(config):
     """Save dashboard configuration to file"""
     try:
+        # Add/update last_modified timestamp
+        config['last_modified'] = datetime.now().isoformat()
+        
         with open(DASHBOARD_CONFIG_FILE, 'w') as f:
             json.dump(config, f, indent=2)
         return True
@@ -975,7 +978,6 @@ def change_password():
 
 
 @app.route('/api/dashboard/config', methods=['GET'])
-@login_required
 def get_dashboard_config():
     """Get dashboard configuration"""
     config = load_dashboard_config()
