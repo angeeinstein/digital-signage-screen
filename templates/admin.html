@@ -1084,9 +1084,16 @@
         }
         
         async function changePassword() {
-            const currentPassword = document.getElementById('currentPassword').value;
-            const newPassword = document.getElementById('newPassword').value;
-            const confirmPassword = document.getElementById('confirmPassword').value;
+            const currentPassword = document.getElementById('currentPassword').value.trim();
+            const newPassword = document.getElementById('newPassword').value.trim();
+            const confirmPassword = document.getElementById('confirmPassword').value.trim();
+            
+            console.log('Password change attempt:', {
+                currentLen: currentPassword.length,
+                newLen: newPassword.length,
+                confirmLen: confirmPassword.length,
+                match: newPassword === confirmPassword
+            });
             
             if (!currentPassword || !newPassword || !confirmPassword) {
                 showError('All password fields are required');
