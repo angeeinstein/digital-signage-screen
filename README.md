@@ -59,6 +59,23 @@ Once installed, access your digital signage at:
 
 **Note**: The installer will show you the exact IP address at the end. Default port is 8080 to avoid permission issues.
 
+### Default Admin Credentials
+
+**⚠️ IMPORTANT SECURITY NOTICE**
+
+On first run, the admin panel is protected with default credentials:
+- **Username**: `admin`
+- **Password**: `admin`
+
+**You must change these credentials immediately after first login!**
+
+1. Login at `/admin` with default credentials
+2. Click "🔑 Change Password" in the header
+3. Enter current password and your new secure password
+4. Click "Change Password"
+
+The system will create an `admin_auth.json` file with hashed credentials (never stores passwords in plain text).
+
 ## Installation Script Features
 
 The `install.sh` script handles everything automatically:

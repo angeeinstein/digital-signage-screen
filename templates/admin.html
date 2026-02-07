@@ -198,6 +198,36 @@
             border: 1px solid #f5c6cb;
         }
         
+        .header-bar {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 10px;
+            padding: 15px 25px;
+            margin-bottom: 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .header-bar h1 {
+            margin: 0;
+            font-size: 24px;
+        }
+        
+        .header-actions {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .btn-logout {
+            background: rgba(255, 68, 68, 0.3);
+            border: 1px solid rgba(255, 68, 68, 0.5);
+        }
+        
+        .btn-logout:hover {
+            background: rgba(255, 68, 68, 0.5);
+        }
+        
         .help-text {
             font-size: 12px;
             color: #666;
@@ -228,10 +258,38 @@
 </head>
 <body>
     <div class="container">
-        <h1>✈️ Dashboard Configuration</h1>
+        <div class="header-bar">
+            <h1>✈️ Dashboard Configuration</h1>
+            <div class="header-actions">
+                <button class="btn btn-small" onclick="showPasswordModal()">🔑 Change Password</button>
+                <button class="btn btn-small btn-logout" onclick="logout()">🚪 Logout</button>
+            </div>
+        </div>
         
         <div class="alert alert-success" id="successAlert"></div>
         <div class="alert alert-error" id="errorAlert"></div>
+        
+        <!-- Password Change Modal --><div id="passwordModal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center;">
+            <div class="card" style="max-width: 400px; margin: 20px;">
+                <h2>Change Password</h2>
+                <div class="form-group">
+                    <label for="currentPassword">Current Password</label>
+                    <input type="password" id="currentPassword" placeholder="Enter current password">
+                </div>
+                <div class="form-group">
+                    <label for="newPassword">New Password</label>
+                    <input type="password" id="newPassword" placeholder="Enter new password">
+                </div>
+                <div class="form-group">
+                    <label for="confirmPassword">Confirm New Password</label>
+                    <input type="password" id="confirmPassword" placeholder="Confirm new password">
+                </div>
+                <div class="btn-group">
+                    <button class="btn btn-primary" onclick="changePassword()">Change Password</button>
+                    <button class="btn btn-secondary" onclick="hidePasswordModal()">Cancel</button>
+                </div>
+            </div>
+        </div>
         
         <!-- Location Settings -->
         <div class="card">
@@ -986,6 +1044,71 @@
                     resultDiv.textContent = `❌ ${errorMsg}`;
                 }
             );
+        }
+        
+        // Password change functions
+        function showPasswordModal() {
+            const modal = document.getElementById('passwordModal');
+            modal.style.display = 'flex';
+        }
+        
+        function hidePasswordModal() {
+            const modal = document.getElementById('passwordModal');
+            modal.style.display = 'none';
+            document.getElementById('currentPassword').value = '';
+            document.getElementById('newPassword').value = '';
+            document.getElementById('confirmPassword').value = '';
+        }
+        
+        async function changePassword() {
+            const currentPassword = document.getElementById('currentPassword').value;
+            const newPassword = document.getElementById('newPassword').value;
+            const confirmPassword = document.getElementById('confirmPassword').value;
+            
+            if (!currentPassword || !newPassword || !confirmPassword) {
+                showError('All password fields are required');
+                return;
+            }
+            
+            if (newPassword !== confirmPassword) {
+                showError('New passwords do not match');
+                return;
+            }
+            
+            if (newPassword.length < 4) {
+                showError('Password must be at least 4 characters long');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/admin/change-password', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        current_password: currentPassword,
+                        new_password: newPassword
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    showSuccess('Password changed successfully!');
+                    hidePasswordModal();
+                } else {
+                    showError(data.message || 'Failed to change password');
+                }
+            } catch (error) {
+                showError('Error changing password: ' + error.message);
+            }
+        }
+        
+        function logout() {
+            if (confirm('Are you sure you want to logout?')) {
+                window.location.href = '/logout';
+            }
         }
         
         // Initialize

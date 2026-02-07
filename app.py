@@ -4,14 +4,16 @@ Digital Signage Display Application
 A Flask-based digital signage solution for Raspberry Pi
 """
 
-from flask import Flask, render_template, jsonify, request, send_from_directory
+from flask import Flask, render_template, jsonify, request, send_from_directory, session, redirect, url_for
 from datetime import datetime
+from functools import wraps
 import os
 import json
 import logging
 import requests
 import math
 import time
+import hashlib
 from pathlib import Path
 import xml.etree.ElementTree as ET
 from zoneinfo import ZoneInfo
@@ -31,6 +33,7 @@ BASE_DIR = Path(__file__).resolve().parent
 CONTENT_DIR = BASE_DIR / 'content'
 DASHBOARD_CONFIG_FILE = BASE_DIR / 'dashboard_config.json'
 FLIGHT_ROUTES_CACHE_FILE = BASE_DIR / 'flight_routes_cache.json'
+AUTH_FILE = BASE_DIR / 'admin_auth.json'
 
 # Cache for nearest flights API to prevent rate limiting
 flights_cache = {
@@ -190,6 +193,60 @@ def save_dashboard_config(config):
     except Exception as e:
         logger.error(f"Error saving dashboard config: {e}")
         return False
+
+
+# Authentication functions
+def hash_password(password):
+    """Hash a password using SHA-256"""
+    return hashlib.sha256(password.encode()).hexdigest()
+
+
+def load_admin_credentials():
+    """Load admin credentials from file or create default"""
+    if AUTH_FILE.exists():
+        try:
+            with open(AUTH_FILE, 'r') as f:
+                return json.load(f)
+        except Exception as e:
+            logger.error(f"Error loading admin credentials: {e}")
+    
+    # Create default credentials: username='admin', password='admin'
+    default_creds = {
+        'username': 'admin',
+        'password': hash_password('admin')
+    }
+    save_admin_credentials(default_creds)
+    logger.warning("Created default admin credentials - username: admin, password: admin - PLEASE CHANGE!")
+    return default_creds
+
+
+def save_admin_credentials(credentials):
+    """Save admin credentials to file"""
+    try:
+        with open(AUTH_FILE, 'w') as f:
+            json.dump(credentials, f, indent=2)
+        os.chmod(AUTH_FILE, 0o600)  # Secure file permissions
+        return True
+    except Exception as e:
+        logger.error(f"Error saving admin credentials: {e}")
+        return False
+
+
+def verify_password(username, password):
+    """Verify username and password"""
+    creds = load_admin_credentials()
+    return (username == creds['username'] and 
+            hash_password(password) == creds['password'])
+
+
+def login_required(f):
+    """Decorator to require login for admin routes"""
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if not session.get('logged_in'):
+            return redirect(url_for('login'))
+        return f(*args, **kwargs)
+    return decorated_function
 
 
 def load_flight_routes_cache():
@@ -847,13 +904,74 @@ def index():
     return render_template('display.html')
 
 
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    """Admin login page"""
+    if request.method == 'POST':
+        data = request.get_json()
+        username = data.get('username')
+        password = data.get('password')
+        
+        if verify_password(username, password):
+            session['logged_in'] = True
+            session.permanent = True  # Remember login
+            logger.info(f"Admin login successful from {request.remote_addr}")
+            return jsonify({'success': True})
+        else:
+            logger.warning(f"Failed login attempt from {request.remote_addr}")
+            return jsonify({'success': False, 'message': 'Invalid credentials'}), 401
+    
+    return render_template('login.html')
+
+
+@app.route('/logout')
+def logout():
+    """Admin logout"""
+    session.pop('logged_in', None)
+    logger.info(f"Admin logout from {request.remote_addr}")
+    return redirect(url_for('login'))
+
+
 @app.route('/admin')
+@login_required
 def admin():
     """Dashboard configuration admin"""
     return render_template('admin.html')
 
 
+@app.route('/api/admin/change-password', methods=['POST'])
+@login_required
+def change_password():
+    """Change admin password"""
+    try:
+        data = request.get_json()
+        current_password = data.get('current_password')
+        new_password = data.get('new_password')
+        
+        if not current_password or not new_password:
+            return jsonify({'success': False, 'message': 'Missing password fields'}), 400
+        
+        creds = load_admin_credentials()
+        
+        # Verify current password
+        if hash_password(current_password) != creds['password']:
+            return jsonify({'success': False, 'message': 'Current password is incorrect'}), 401
+        
+        # Update password
+        creds['password'] = hash_password(new_password)
+        if save_admin_credentials(creds):
+            logger.info(f"Admin password changed from {request.remote_addr}")
+            return jsonify({'success': True, 'message': 'Password changed successfully'})
+        else:
+            return jsonify({'success': False, 'message': 'Failed to save new password'}), 500
+            
+    except Exception as e:
+        logger.error(f"Error changing password: {e}")
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+
 @app.route('/api/dashboard/config', methods=['GET'])
+@login_required
 def get_dashboard_config():
     """Get dashboard configuration"""
     config = load_dashboard_config()
@@ -861,6 +979,7 @@ def get_dashboard_config():
 
 
 @app.route('/api/dashboard/config', methods=['POST'])
+@login_required
 def update_dashboard_config():
     """Update dashboard configuration"""
     try:
@@ -1449,6 +1568,7 @@ def get_timetable():
 
 
 @app.route('/api/test/weather')
+@login_required
 def test_weather_api():
     """Test weather API with provided key"""
     try:
@@ -1526,6 +1646,7 @@ def test_weather_api():
 
 
 @app.route('/api/test/transport')
+@login_required
 def test_transport_api():
     """Test TRIAS transport API"""
     try:
@@ -1570,6 +1691,7 @@ def search_stops():
 
 
 @app.route('/api/test/opensky')
+@login_required
 def test_opensky_api():
     """Test OpenSky API with provided credentials or anonymous"""
     try:
@@ -1671,6 +1793,7 @@ def test_opensky_api():
 
 
 @app.route('/api/test/airlabs')
+@login_required
 def test_airlabs_api():
     """Test AirLabs API with provided key"""
     try:
@@ -1794,6 +1917,7 @@ def list_flight_routes():
 
 
 @app.route('/api/test/timetable')
+@login_required
 def test_timetable_api():
     """Test timetable API"""
     try:
