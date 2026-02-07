@@ -52,6 +52,9 @@ DEFAULT_DASHBOARD_CONFIG = {
         'lon': 8.0,
         'name': 'Default Location'
     },
+    'display': {
+        'font_scale': 1.0  # Font size scale: 0.8 = 80%, 1.0 = 100%, 1.2 = 120%
+    },
     'weather': {
         'api_key': '',  # OpenWeatherMap API key
         'enabled': True

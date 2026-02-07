@@ -5,6 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Aviation Student Information Display</title>
     <style>
+        :root {
+            --font-scale: 1.0;
+        }
+        
         * {
             margin: 0;
             padding: 0;
@@ -17,6 +21,7 @@
             color: #fff;
             overflow: hidden;
             height: 100vh;
+            font-size: calc(16px * var(--font-scale));
         }
         
         .container {
@@ -132,7 +137,7 @@
             padding: 10px 12px;
             background: rgba(255, 255, 255, 0.1);
             margin-bottom: 6px;
-            font-size: 16px;
+            font-size: 18px;
         }
         
         .flight-item > div {
@@ -162,34 +167,34 @@
         
         .flight-number-col {
             font-weight: bold;
-            font-size: 18px;
+            font-size: 20px;
         }
         
         .flight-airline-col {
-            font-size: 16px;
+            font-size: 18px;
             opacity: 0.9;
         }
         
         .flight-route-col {
-            font-size: 18px;
+            font-size: 20px;
             opacity: 0.9;
         }
         
         .flight-aircraft-col {
-            font-size: 17px;
+            font-size: 19px;
             opacity: 0.85;
         }
         
         .flight-altitude-col {
-            font-size: 18px;
+            font-size: 20px;
         }
         
         .flight-speed-col {
-            font-size: 18px;
+            font-size: 20px;
         }
         
         .flight-distance-col {
-            font-size: 20px;
+            font-size: 22px;
             font-weight: bold;
             text-align: right;
         }
@@ -265,7 +270,7 @@
             padding: 8px 12px;
             background: rgba(255, 255, 255, 0.1);
             border-radius: 0;
-            font-size: 16px;
+            font-size: 18px;
         }
         
         .transport-item > span {
@@ -276,21 +281,21 @@
         
         .transport-line {
             font-weight: bold;
-            font-size: 18px;
+            font-size: 20px;
         }
         
         .transport-direction {
-            font-size: 16px;
+            font-size: 18px;
             opacity: 0.9;
         }
         
         .transport-countdown {
-            font-size: 16px;
+            font-size: 18px;
             text-align: right;
         }
         
         .transport-time {
-            font-size: 18px;
+            font-size: 20px;
             font-weight: bold;
             text-align: right;
         }
@@ -336,7 +341,7 @@
             padding: 8px 12px;
             background: rgba(255, 255, 255, 0.1);
             border-radius: 0;
-            font-size: 16px;
+            font-size: 18px;
         }
         
         .timetable-item.now {
@@ -352,15 +357,15 @@
         
         .timetable-time {
             font-weight: bold;
-            font-size: 18px;
+            font-size: 20px;
         }
         
         .timetable-course {
-            font-size: 16px;
+            font-size: 18px;
         }
         
         .timetable-room {
-            font-size: 15px;
+            font-size: 17px;
             opacity: 0.85;
             text-align: right;
         }
@@ -515,6 +520,11 @@
                 if (data.success) {
                     config = data.config;
                     lastModified = config.last_modified;
+                    
+                    // Apply font scale
+                    const fontScale = config.display?.font_scale || 1.0;
+                    document.documentElement.style.setProperty('--font-scale', fontScale);
+                    
                     initializeDashboard();
                 }
             } catch (error) {
