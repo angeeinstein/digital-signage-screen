@@ -228,6 +228,28 @@
             background: rgba(255, 68, 68, 0.5);
         }
         
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .modal-overlay.show {
+            display: flex;
+        }
+        
+        .modal-content {
+            max-width: 400px;
+            margin: 20px;
+        }
+        
         .help-text {
             font-size: 12px;
             color: #666;
@@ -269,8 +291,9 @@
         <div class="alert alert-success" id="successAlert"></div>
         <div class="alert alert-error" id="errorAlert"></div>
         
-        <!-- Password Change Modal --><div id="passwordModal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center;">
-            <div class="card" style="max-width: 400px; margin: 20px;">
+        <!-- Password Change Modal -->
+        <div id="passwordModal" class="modal-overlay">
+            <div class="card modal-content">
                 <h2>Change Password</h2>
                 <div class="form-group">
                     <label for="currentPassword">Current Password</label>
@@ -1049,12 +1072,12 @@
         // Password change functions
         function showPasswordModal() {
             const modal = document.getElementById('passwordModal');
-            modal.style.display = 'flex';
+            modal.classList.add('show');
         }
         
         function hidePasswordModal() {
             const modal = document.getElementById('passwordModal');
-            modal.style.display = 'none';
+            modal.classList.remove('show');
             document.getElementById('currentPassword').value = '';
             document.getElementById('newPassword').value = '';
             document.getElementById('confirmPassword').value = '';
