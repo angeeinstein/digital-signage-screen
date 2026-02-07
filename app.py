@@ -1874,6 +1874,7 @@ def test_airlabs_api():
 
 
 @app.route('/api/flight-routes/add', methods=['POST'])
+@login_required
 def add_flight_route():
     """Manually add a flight route to the cache"""
     try:
