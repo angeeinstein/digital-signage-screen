@@ -525,10 +525,12 @@
                     const fontScale = config.display?.font_scale || 1.0;
                     document.documentElement.style.setProperty('--font-scale', fontScale);
                     
+                    resetServerError(); // Server is responding
                     initializeDashboard();
                 }
             } catch (error) {
                 console.error('Failed to load config:', error);
+                handleServerError();
             }
         }
         
@@ -545,6 +547,41 @@
                 }
             } catch (error) {
                 console.error('Failed to check for updates:', error);
+                // Server might be down or restarting, schedule a reload check
+                handleServerError();
+            }
+        }
+        
+        // Handle server connectivity issues (restarts, updates)
+        let serverErrorCount = 0;
+        let reconnectInterval = null;
+        
+        function handleServerError() {
+            serverErrorCount++;
+            
+            // After 2 consecutive errors, start trying to reconnect
+            if (serverErrorCount >= 2 && !reconnectInterval) {
+                console.log('Server appears to be down, attempting to reconnect...');
+                reconnectInterval = setInterval(async () => {
+                    try {
+                        const response = await fetch('/api/dashboard/config');
+                        if (response.ok) {
+                            console.log('Server is back online, reloading page...');
+                            location.reload();
+                        }
+                    } catch (error) {
+                        console.log('Still waiting for server...');
+                    }
+                }, 3000); // Check every 3 seconds when server is down
+            }
+        }
+        
+        // Reset error counter on successful requests
+        function resetServerError() {
+            serverErrorCount = 0;
+            if (reconnectInterval) {
+                clearInterval(reconnectInterval);
+                reconnectInterval = null;
             }
         }
         
@@ -770,7 +807,7 @@
         setInterval(loadTransport, 60000); // 1 minute
         setInterval(loadTimetable, 60000); // 1 minute
         setInterval(loadNearestFlights, 15000); // 15 seconds - cached routes prevent rate limiting
-        setInterval(checkForUpdates, 30000); // Check for config updates every 30 seconds
+        setInterval(checkForUpdates, 3000); // Check for config updates every 3 seconds (fast response to admin changes)
     </script>
 </body>
 </html>

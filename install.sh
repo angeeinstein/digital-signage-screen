@@ -281,6 +281,12 @@ setup_systemd_service() {
         exit 1
     }
     
+    # Copy gunicorn config file
+    print_info "Installing gunicorn configuration..."
+    cp -f "$INSTALL_DIR/gunicorn_config.py" "$INSTALL_DIR/gunicorn_config.py" || {
+        print_warning "Failed to copy gunicorn config (may already be correct)"
+    }
+    
     # Reload systemd
     print_info "Reloading systemd daemon..."
     systemctl daemon-reload || {
@@ -559,8 +565,12 @@ update_installation() {
     # Update Python environment
     setup_python_environment "update"
     
-    # Update service file
+    # Update service file and gunicorn config
+    print_info "Updating service configuration..."
     cp -f "$INSTALL_DIR/$SERVICE_FILE" "/etc/systemd/system/$SERVICE_FILE" 2>/dev/null || true
+    cp -f "$INSTALL_DIR/gunicorn_config.py" "$INSTALL_DIR/gunicorn_config.py" 2>/dev/null || {
+        print_warning "Failed to update gunicorn config (may already be correct)"
+    }
     systemctl daemon-reload
     
     # Set permissions

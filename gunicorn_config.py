@@ -12,16 +12,17 @@ backlog = 2048
 
 # Worker processes - optimized for Raspberry Pi 5
 # Pi 5 has 4 cores, use 2 workers to leave resources for display
-workers = 1  # Start with 1 worker to avoid issues
+workers = 2  # Use 2 workers for better performance
 worker_class = "sync"
-worker_connections = 1000
-timeout = 30
-keepalive = 2
-preload_app = False  # Don't preload to see errors better
+worker_connections = 100  # Reduced from 1000
+timeout = 120  # Increased from 30 to prevent worker timeouts
+keepalive = 5  # Increased to keep connections alive longer
+preload_app = True  # Preload app to speed up worker startup
+graceful_timeout = 30  # Time to wait for workers to finish requests during restart
 
 # Max requests per worker before restart (prevent memory leaks)
-max_requests = 1000
-max_requests_jitter = 50
+max_requests = 2000  # Increased from 1000
+max_requests_jitter = 100  # Increased jitter
 
 # Server mechanics
 daemon = False
@@ -30,6 +31,9 @@ umask = 0
 user = None  # Run as the user specified in systemd service
 group = None
 tmp_upload_dir = None
+
+# Systemd integration
+systemd_bind = True  # Use systemd socket activation if available
 
 # Logging - use stdout/stderr for systemd journal
 errorlog = "-"  # Log to stderr (systemd captures this)
