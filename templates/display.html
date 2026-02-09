@@ -333,8 +333,7 @@
             gap: 6px;
         }
         
-        .timetable-item,
-        .transport-item {
+        .timetable-item {
             display: grid;
             grid-template-columns: 110px 1fr 135px;
             align-items: center;
@@ -345,20 +344,17 @@
             font-size: calc(18px * var(--font-scale));
         }
         
-        .timetable-item.now,
-        .transport-item.now {
+        .timetable-item.now {
             background: rgba(255, 152, 0, 0.2);
             border-left: 3px solid #ff9800;
         }
         
-        .timetable-item.exam,
-        .transport-item.exam {
+        .timetable-item.exam {
             background: rgba(220, 53, 69, 0.15);
             border-left: 3px solid #dc3545;
         }
         
-        .timetable-item.exam.now,
-        .transport-item.exam.now {
+        .timetable-item.exam.now {
             background: rgba(255, 152, 0, 0.3);
             border-left: 3px solid #ff9800;
         }
@@ -827,7 +823,7 @@
                         }
                         
                         // Build class list
-                        const classes = ['transport-item'];
+                        const classes = ['timetable-item'];
                         if (isNow) classes.push('now');
                         if (isExam) classes.push('exam');
                         
@@ -843,7 +839,7 @@
                     // Show empty state
                     const list = document.getElementById('timetable-list');
                     list.innerHTML = `
-                        <div class="transport-item">
+                        <div class="timetable-item">
                             <span>--:--</span>
                             <span>No lectures</span>
                             <span>---</span>
