@@ -231,6 +231,12 @@
             font-size: calc(15px * var(--font-scale));
         }
         
+        .weather-detail img {
+            width: 18px;
+            height: 18px;
+            opacity: 0.9;
+        }
+        
         /* Transport */
         .transport {
             overflow-y: auto;
@@ -453,19 +459,19 @@
             </div>
             <div class="weather-details">
                 <div class="weather-detail">
-                    <span style="font-size: 18px;">💨</span>
+                    <img src="/static/icons/wind.svg" alt="wind">
                     <span id="weather-wind">-- km/h</span>
                 </div>
                 <div class="weather-detail">
-                    <span style="font-size: 18px;">💧</span>
+                    <img src="/static/icons/rain.svg" alt="humidity">
                     <span id="weather-humidity">--%</span>
                 </div>
                 <div class="weather-detail">
-                    <span style="font-size: 18px;">🌡️</span>
+                    <img src="/static/icons/temperature.svg" alt="temperature">
                     <span id="weather-pressure">-- hPa</span>
                 </div>
                 <div class="weather-detail">
-                    <span style="font-size: 18px;">👁️</span>
+                    <img src="/static/icons/visibility.svg" alt="visibility">
                     <span id="weather-visibility">-- km</span>
                 </div>
             </div>
