@@ -2103,45 +2103,34 @@ def list_flight_routes():
 @app.route('/api/test/timetable')
 @login_required
 def test_timetable_api():
-    """Test timetable API"""
+    """Test timetable API with provided cohort"""
     try:
-        api_url = request.args.get('api_url', '').strip()
-        api_key = request.args.get('api_key', '').strip()
+        cohort = request.args.get('cohort', '').strip()
+        max_items = int(request.args.get('max_items', 5))
         
-        if not api_url:
-            return jsonify({'success': False, 'message': 'No API URL provided'}), 400
+        # Test the Almaty API directly without saving config
+        lectures = get_almaty_lectures(cohort, max_items)
         
-        headers = {}
-        if api_key:
-            headers['Authorization'] = f'Bearer {api_key}'
-        
-        response = requests.get(api_url, headers=headers, timeout=10)
-        
-        if response.status_code == 200:
-            data = response.json()
-            # Try to extract lecture count from response
-            lectures = data.get('lectures', data if isinstance(data, list) else [])
-            lectures_count = len(lectures) if isinstance(lectures, list) else 'unknown'
+        if lectures:
             return jsonify({
-                'success': True, 
-                'lectures_count': lectures_count
+                'success': True,
+                'lectures_count': len(lectures),
+                'lectures': lectures
             })
         else:
-            error_msg = 'Unknown error'
-            try:
-                error_data = response.json()
-                error_msg = error_data.get('message', error_msg)
-            except:
-                error_msg = f'HTTP {response.status_code}'
-            return jsonify({'success': False, 'message': f'API Error: {error_msg}'}), response.status_code
-            
-    except requests.exceptions.Timeout:
-        return jsonify({'success': False, 'message': 'Request timeout'}), 500
-    except requests.exceptions.ConnectionError:
-        return jsonify({'success': False, 'message': 'Connection error'}), 500
+            return jsonify({
+                'success': True,
+                'lectures_count': 0,
+                'lectures': [],
+                'message': 'No upcoming lectures found in the next 14 days'
+            })
+        
     except Exception as e:
         logger.error(f"Error testing timetable API: {e}")
-        return jsonify({'success': False, 'message': str(e)}), 500
+        return jsonify({
+            'success': False,
+            'message': str(e)
+        }), 500
 
 
 @app.errorhandler(404)

@@ -972,6 +972,7 @@
         // Test timetable API
         async function testTimetableAPI() {
             const cohort = document.getElementById('timetableCohort').value.trim();
+            const maxItems = parseInt(document.getElementById('timetableMaxItems').value) || 5;
             const resultDiv = document.getElementById('timetableTestResult');
             
             resultDiv.className = 'test-result';
@@ -983,44 +984,26 @@
             resultDiv.style.display = 'block';
             
             try {
-                // Load current config first
-                const currentConfigResponse = await fetch('/api/dashboard/config');
-                const currentConfigData = await currentConfigResponse.json();
-                const currentConfig = currentConfigData.config || {};
-                
-                // Update only timetable settings, preserve everything else
-                const updatedConfig = {
-                    ...currentConfig,
-                    timetable: {
-                        ...currentConfig.timetable,
-                        enabled: true,
-                        cohort: cohort,
-                        max_items: parseInt(document.getElementById('timetableMaxItems').value) || 5
-                    }
-                };
-                
-                // Save updated config
-                await fetch('/api/dashboard/config', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(updatedConfig)
+                // Test without saving config - just call test endpoint
+                const params = new URLSearchParams({
+                    cohort: cohort,
+                    max_items: maxItems
                 });
                 
-                // Test the API
-                const response = await fetch('/api/dashboard/timetable');
+                const response = await fetch(`/api/test/timetable?${params}`);
                 const data = await response.json();
                 
-                if (data.success && data.lectures) {
-                    if (data.lectures.length > 0) {
+                if (data.success) {
+                    if (data.lectures && data.lectures.length > 0) {
                         const first = data.lectures[0];
                         const displayName = first.year_group ? `${first.year_group} - ${first.lecture}` : first.lecture;
                         const cohortInfo = cohort ? `for ${cohort}` : 'across all year groups';
                         resultDiv.className = 'test-result success';
-                        resultDiv.innerHTML = `✅ <strong>API working!</strong><br>Found ${data.lectures.length} upcoming lecture(s) ${cohortInfo}<br>Next: ${displayName} at ${first.time} (${first.date}) in ${first.room || 'Online'}`;
+                        resultDiv.innerHTML = `✅ <strong>API working!</strong><br>Found ${data.lectures_count} upcoming lecture(s) ${cohortInfo}<br>Next: ${displayName} at ${first.time} (${first.date}) in ${first.room || 'Online'}`;
                     } else {
                         resultDiv.className = 'test-result warning';
                         const cohortInfo = cohort ? `for cohort ${cohort}` : 'for any year group';
-                        resultDiv.textContent = `⚠️ API responded but no upcoming lectures found ${cohortInfo} in the next 14 days.`;
+                        resultDiv.textContent = `⚠️ ${data.message || 'No upcoming lectures found ' + cohortInfo + ' in the next 14 days.'}`;
                     }
                 } else {
                     resultDiv.className = 'test-result error';
@@ -1028,6 +1011,9 @@
                 }
             } catch (error) {
                 resultDiv.className = 'test-result error';
+                resultDiv.textContent = `❌ Connection error: ${error.message}`;
+            }
+        }
                 resultDiv.textContent = `❌ Connection error: ${error.message}`;
             }
         }
