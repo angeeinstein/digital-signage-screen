@@ -335,7 +335,7 @@
         
         .timetable-item {
             display: grid;
-            grid-template-columns: 70px 1fr 120px;
+            grid-template-columns: 70px 1fr 150px;
             align-items: center;
             gap: 12px;
             padding: 8px 12px;
@@ -346,6 +346,16 @@
         
         .timetable-item.now {
             background: rgba(255, 152, 0, 0.2);
+            border-left: 3px solid #ff9800;
+        }
+        
+        .timetable-item.exam {
+            background: rgba(220, 53, 69, 0.15);
+            border-left: 3px solid #dc3545;
+        }
+        
+        .timetable-item.exam.now {
+            background: rgba(255, 152, 0, 0.3);
             border-left: 3px solid #ff9800;
         }
         
@@ -368,6 +378,8 @@
             font-size: calc(17px * var(--font-scale));
             opacity: 0.85;
             text-align: right;
+            overflow: visible;
+            white-space: normal;
         }
         
         /* Scrollbar styling */
@@ -781,8 +793,9 @@
                         const lectureTime = new Date(lecture.timestamp);
                         const diffMins = Math.floor((lectureTime - now) / 60000);
                         const isNow = diffMins >= 0 && diffMins < 30;
+                        const isExam = lecture.type === 'EXAM';
                         
-                        // Format display: "LAV23 - Lecture Name" or "EXAM: LAV23 - Lecture Name"
+                        // Format display: "LAV23 - Lecture Name" (no EXAM prefix)
                         let displayText = '';
                         if (lecture.year_group) {
                             displayText = `${lecture.year_group} - ${lecture.lecture}`;
@@ -790,12 +803,13 @@
                             displayText = lecture.lecture;
                         }
                         
-                        if (lecture.type === 'EXAM') {
-                            displayText = `EXAM: ${displayText}`;
-                        }
+                        // Build class list
+                        const classes = ['transport-item'];
+                        if (isNow) classes.push('now');
+                        if (isExam) classes.push('exam');
                         
                         return `
-                            <div class="transport-item ${isNow ? 'now' : ''}">
+                            <div class="${classes.join(' ')}">
                                 <span class="timetable-time">${lecture.time}</span>
                                 <span class="timetable-course">${displayText}</span>
                                 <span class="timetable-room">${lecture.room || 'Online'}</span>
