@@ -983,20 +983,27 @@
             resultDiv.style.display = 'block';
             
             try {
-                // Temporarily save current settings and test
-                const tempConfig = {
+                // Load current config first
+                const currentConfigResponse = await fetch('/api/dashboard/config');
+                const currentConfigData = await currentConfigResponse.json();
+                const currentConfig = currentConfigData.config || {};
+                
+                // Update only timetable settings, preserve everything else
+                const updatedConfig = {
+                    ...currentConfig,
                     timetable: {
+                        ...currentConfig.timetable,
                         enabled: true,
                         cohort: cohort,
                         max_items: parseInt(document.getElementById('timetableMaxItems').value) || 5
                     }
                 };
                 
-                // Save temp config
+                // Save updated config
                 await fetch('/api/dashboard/config', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(tempConfig)
+                    body: JSON.stringify(updatedConfig)
                 });
                 
                 // Test the API
