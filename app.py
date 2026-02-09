@@ -737,8 +737,13 @@ def get_almaty_lectures(cohort, max_items=5, time_window_hours=24):
                 
                 # Parse as ISO datetime
                 start_dt = datetime.fromisoformat(start_str.replace('Z', '+00:00'))
-                # Convert to Europe/Vienna timezone
-                start_local = start_dt.astimezone(ZoneInfo('Europe/Vienna'))
+                
+                # If datetime is naive (no timezone), assume Europe/Vienna
+                if start_dt.tzinfo is None:
+                    start_local = start_dt.replace(tzinfo=ZoneInfo('Europe/Vienna'))
+                else:
+                    # Convert to Europe/Vienna timezone
+                    start_local = start_dt.astimezone(ZoneInfo('Europe/Vienna'))
                 
                 # Only include future events within the time window
                 if start_local <= now or start_local > cutoff_time:
