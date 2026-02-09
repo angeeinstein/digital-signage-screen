@@ -1716,46 +1716,6 @@ def get_flights_airlabs(config, flight_config):
         return jsonify({'success': False, 'flights': [], 'message': str(e)})
 
 
-@app.route('/api/dashboard/timetable')
-def get_timetable():
-    """Get lecture timetable from external API"""
-    try:
-        config = load_dashboard_config()
-        timetable_config = config.get('timetable', {})
-        
-        if not timetable_config.get('enabled', True):
-            return jsonify({'success': True, 'lectures': []})
-        
-        api_url = timetable_config.get('api_url', '').strip()
-        api_key = timetable_config.get('api_key', '').strip()
-        
-        if not api_url:
-            return jsonify({'success': True, 'lectures': [], 'message': 'No API configured yet'}), 200
-        
-        # Fetch from external API
-        headers = {}
-        if api_key:
-            headers['Authorization'] = f'Bearer {api_key}'
-        
-        response = requests.get(api_url, headers=headers, timeout=10)
-        response.raise_for_status()
-        
-        api_data = response.json()
-        
-        # Assuming API returns lectures in format: {'lectures': [...]}
-        # Adjust this based on your actual API response structure
-        lectures = api_data.get('lectures', api_data if isinstance(api_data, list) else [])
-        
-        return jsonify({'success': True, 'lectures': lectures})
-        
-    except requests.exceptions.RequestException as e:
-        logger.error(f"Error fetching timetable from API: {e}")
-        return jsonify({'success': False, 'lectures': [], 'message': f'API error: {str(e)}'}), 200
-    except Exception as e:
-        logger.error(f"Error fetching timetable: {e}")
-        return jsonify({'success': False, 'lectures': [], 'message': str(e)}), 200
-
-
 @app.route('/api/test/weather')
 @login_required
 def test_weather_api():
