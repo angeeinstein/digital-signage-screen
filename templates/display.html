@@ -335,7 +335,7 @@
         
         .timetable-item {
             display: grid;
-            grid-template-columns: 70px 1fr 150px;
+            grid-template-columns: 70px 1fr 200px;
             align-items: center;
             gap: 12px;
             padding: 8px 12px;
@@ -380,8 +380,9 @@
             font-size: calc(17px * var(--font-scale));
             opacity: 0.85;
             text-align: right;
-            overflow: visible;
-            white-space: normal;
+            overflow: visible !important;
+            text-overflow: clip !important;
+            white-space: normal !important;
         }
         
         /* Scrollbar styling */
