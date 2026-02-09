@@ -521,25 +521,34 @@
         
         <!-- Timetable Settings -->
         <div class="card">
-            <h2>📅 Lecture Timetable API</h2>
+            <h2>📅 Lecture Timetable (FH JOANNEUM Almaty)</h2>
             <div class="form-group checkbox-group">
                 <input type="checkbox" id="timetableEnabled" checked>
                 <label for="timetableEnabled">Enable Timetable Display</label>
             </div>
+            <p class="help-text">
+                Using FH JOANNEUM Almaty timetable API - no API key required<br>
+                Enter your cohort code to display upcoming lectures
+            </p>
             
             <div class="form-group">
-                <label for="timetableApiUrl">Timetable API URL</label>
-                <input type="text" id="timetableApiUrl" placeholder="https://api.example.com/timetable">
-                <div class="help-text">API should return JSON with lectures array</div>
+                <label for="timetableCohort">Cohort Search Query</label>
+                <input type="text" id="timetableCohort" placeholder="e.g., LAV2023, MAV2025">
+                <div class="help-text">
+                    Enter your cohort code as it appears in the timetable system.<br>
+                    Try both formats if one doesn't work: "LAV2023" or "LAV 2023"
+                </div>
             </div>
             
             <div class="form-group">
-                <label for="timetableApiKey">API Key (if required)</label>
-                <input type="text" id="timetableApiKey" placeholder="Optional API key">
+                <label for="timetableMaxItems">Maximum Items to Display: <span id="timetableMaxValue">5</span></label>
+                <input type="range" id="timetableMaxItems" min="3" max="10" value="5" step="1" 
+                       oninput="document.getElementById('timetableMaxValue').textContent = this.value">
+                <div class="help-text">Number of upcoming lectures to show (3-10)</div>
             </div>
             
             <button class="btn btn-secondary" onclick="testTimetableAPI()">🧪 Test Timetable API</button>
-            <div id="timetableApiTestResult"></div>
+            <div class="test-result" id="timetableTestResult"></div>
         </div>
         
         <!-- Save Button -->
@@ -599,8 +608,10 @@
                     
                     // Timetable
                     document.getElementById('timetableEnabled').checked = config.timetable?.enabled !== false;
-                    document.getElementById('timetableApiUrl').value = config.timetable?.api_url || '';
-                    document.getElementById('timetableApiKey').value = config.timetable?.api_key || '';
+                    document.getElementById('timetableCohort').value = config.timetable?.cohort || '';
+                    const maxItems = config.timetable?.max_items || 5;
+                    document.getElementById('timetableMaxItems').value = maxItems;
+                    document.getElementById('timetableMaxValue').textContent = maxItems;
                 }
             } catch (error) {
                 showError('Failed to load configuration: ' + error.message);
@@ -646,10 +657,8 @@
                     },
                     timetable: {
                         enabled: document.getElementById('timetableEnabled').checked,
-                        use_api: true,  // Always use API now
-                        api_url: document.getElementById('timetableApiUrl').value,
-                        api_key: document.getElementById('timetableApiKey').value,
-                        lectures: []  // Empty for API mode
+                        cohort: document.getElementById('timetableCohort').value,
+                        max_items: parseInt(document.getElementById('timetableMaxItems').value) || 5
                     }
                 };
                 
@@ -962,13 +971,12 @@
         
         // Test timetable API
         async function testTimetableAPI() {
-            const apiUrl = document.getElementById('timetableApiUrl').value;
-            const apiKey = document.getElementById('timetableApiKey').value;
-            const resultDiv = document.getElementById('timetableApiTestResult');
+            const cohort = document.getElementById('timetableCohort').value.trim();
+            const resultDiv = document.getElementById('timetableTestResult');
             
-            if (!apiUrl) {
+            if (!cohort) {
                 resultDiv.className = 'test-result error';
-                resultDiv.textContent = '❌ Please enter API URL first';
+                resultDiv.textContent = '❌ Please enter a cohort code first (e.g., LAV2023)';
                 resultDiv.style.display = 'block';
                 return;
             }
@@ -978,15 +986,39 @@
             resultDiv.style.display = 'block';
             
             try {
-                const response = await fetch(`/api/test/timetable?api_url=${encodeURIComponent(apiUrl)}&api_key=${encodeURIComponent(apiKey)}`);
+                // Temporarily save current settings and test
+                const tempConfig = {
+                    timetable: {
+                        enabled: true,
+                        cohort: cohort,
+                        max_items: parseInt(document.getElementById('timetableMaxItems').value) || 5
+                    }
+                };
+                
+                // Save temp config
+                await fetch('/api/dashboard/config', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(tempConfig)
+                });
+                
+                // Test the API
+                const response = await fetch('/api/dashboard/timetable');
                 const data = await response.json();
                 
-                if (data.success) {
-                    resultDiv.className = 'test-result success';
-                    resultDiv.innerHTML = `✅ <strong>API working!</strong><br>Found ${data.lectures_count} lecture(s)`;
+                if (data.success && data.lectures) {
+                    if (data.lectures.length > 0) {
+                        const first = data.lectures[0];
+                        const displayName = first.year_group ? `${first.year_group} - ${first.lecture}` : first.lecture;
+                        resultDiv.className = 'test-result success';
+                        resultDiv.innerHTML = `✅ <strong>API working!</strong><br>Found ${data.lectures.length} upcoming lecture(s)<br>Next: ${displayName} at ${first.time} in ${first.room || 'Online'}`;
+                    } else {
+                        resultDiv.className = 'test-result warning';
+                        resultDiv.textContent = '⚠️ API responded but no upcoming lectures found. Check your cohort code.';
+                    }
                 } else {
                     resultDiv.className = 'test-result error';
-                    resultDiv.textContent = `❌ API Error: ${data.message}`;
+                    resultDiv.textContent = `❌ API Error: ${data.message || 'Unknown error'}`;
                 }
             } catch (error) {
                 resultDiv.className = 'test-result error';

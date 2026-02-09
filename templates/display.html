@@ -775,21 +775,43 @@
                 if (data.success && data.lectures.length > 0) {
                     const list = document.getElementById('timetable-list');
                     const now = new Date();
-                    const currentTime = now.getHours() * 60 + now.getMinutes();
                     
                     list.innerHTML = data.lectures.map(lecture => {
-                        const [hours, minutes] = lecture.time.split(':').map(Number);
-                        const lectureTime = hours * 60 + minutes;
-                        const isNow = Math.abs(lectureTime - currentTime) < 30; // Within 30 minutes
+                        // Check if lecture is happening now (within 30 minutes)
+                        const lectureTime = new Date(lecture.timestamp);
+                        const diffMins = Math.floor((lectureTime - now) / 60000);
+                        const isNow = diffMins >= 0 && diffMins < 30;
+                        
+                        // Format display: "LAV23 - Lecture Name" or "EXAM: LAV23 - Lecture Name"
+                        let displayText = '';
+                        if (lecture.year_group) {
+                            displayText = `${lecture.year_group} - ${lecture.lecture}`;
+                        } else {
+                            displayText = lecture.lecture;
+                        }
+                        
+                        if (lecture.type === 'EXAM') {
+                            displayText = `EXAM: ${displayText}`;
+                        }
                         
                         return `
                             <div class="transport-item ${isNow ? 'now' : ''}">
                                 <span class="timetable-time">${lecture.time}</span>
-                                <span class="timetable-course">${lecture.year} - ${lecture.name}</span>
-                                <span class="timetable-room">${lecture.room}</span>
+                                <span class="timetable-course">${displayText}</span>
+                                <span class="timetable-room">${lecture.room || 'Online'}</span>
                             </div>
                         `;
                     }).join('');
+                } else {
+                    // Show empty state
+                    const list = document.getElementById('timetable-list');
+                    list.innerHTML = `
+                        <div class="transport-item">
+                            <span>--:--</span>
+                            <span>No lectures</span>
+                            <span>---</span>
+                        </div>
+                    `;
                 }
             } catch (error) {
                 console.error('Failed to load timetable:', error);

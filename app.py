@@ -5,7 +5,7 @@ A Flask-based digital signage solution for Raspberry Pi
 """
 
 from flask import Flask, render_template, jsonify, request, send_from_directory, session, redirect, url_for
-from datetime import datetime
+from datetime import datetime, timedelta
 from functools import wraps
 import os
 import json
@@ -79,10 +79,8 @@ DEFAULT_DASHBOARD_CONFIG = {
     },
     'timetable': {
         'enabled': True,
-        'use_api': True,  # Always use API
-        'api_url': '',  # URL for timetable API endpoint
-        'api_key': '',  # API key if required
-        'lectures': []  # Not used anymore - API only
+        'cohort': '',  # Search query for cohort (e.g., 'LAV2023', 'MAV2025')
+        'max_items': 5  # Maximum number of upcoming lectures to display
     }
 }
 
@@ -668,6 +666,159 @@ def get_trias_departures(stop_id, limit=10):
         return []
 
 
+def get_almaty_lectures(cohort, max_items=5):
+    """Get upcoming lectures from FH JOANNEUM Almaty timetable API"""
+    try:
+        # Build date range: today to 14 days ahead
+        now = datetime.now(ZoneInfo('Europe/Vienna'))
+        start_date = now.strftime('%Y-%m-%d')
+        end_date = (now.replace(hour=0, minute=0, second=0, microsecond=0) + 
+                    timedelta(days=14)).strftime('%Y-%m-%d')
+        
+        # Fetch from Almaty API
+        url = 'https://almaty.fh-joanneum.at/stundenplan/json.php'
+        params = {
+            'q': cohort,
+            'start': start_date,
+            'end': end_date
+        }
+        
+        response = requests.get(url, params=params, timeout=10)
+        response.raise_for_status()
+        
+        events = response.json()
+        
+        # Filter and process events
+        lectures = []
+        for event in events:
+            try:
+                # Parse start time (ISO format)
+                start_str = event.get('start', '')
+                if not start_str:
+                    continue
+                
+                # Parse as ISO datetime
+                start_dt = datetime.fromisoformat(start_str.replace('Z', '+00:00'))
+                # Convert to Europe/Vienna timezone
+                start_local = start_dt.astimezone(ZoneInfo('Europe/Vienna'))
+                
+                # Only include future events
+                if start_local <= now:
+                    continue
+                
+                # Parse title to extract course name, room, year group, and type
+                title = event.get('title', '')
+                lecture_name, room, year_group, event_type = parse_almaty_title(title)
+                
+                lectures.append({
+                    'time': start_local.strftime('%H:%M'),
+                    'date': start_local.strftime('%Y-%m-%d'),
+                    'timestamp': start_local.isoformat(),
+                    'lecture': lecture_name,
+                    'room': room,
+                    'year_group': year_group,
+                    'type': event_type,
+                    'raw_title': title
+                })
+            except Exception as e:
+                logger.error(f"Error parsing event: {e}")
+                continue
+        
+        # Sort by timestamp and limit
+        lectures.sort(key=lambda x: x['timestamp'])
+        return lectures[:max_items]
+        
+    except Exception as e:
+        logger.error(f"Error getting Almaty lectures: {e}")
+        return []
+
+
+def parse_almaty_title(title):
+    """
+    Parse Almaty timetable title to extract lecture name, room, year group, and type.
+    
+    Expected format examples:
+    - Regular: "Flugmechanik und Drehflügler (-114060) (IL), Arnold Uwe T.P., Standardgruppe, Online (LAV 2023)"
+    - Exam: "Prüfungstermin: B22.0587404 25S 3SSt IL Kunst- und Faserverbundwerkstoffe  bei Windbacher, -, AP149 AP149.02.212 (LAV 2023)"
+    
+    Street codes: AP (Alte Poststraße), EA (Eggenberger Allee), ES (Eckertstraße)
+    
+    Returns: (lecture_name, room, year_group, event_type)
+    """
+    import re
+    
+    # Calculate valid year groups based on current academic year
+    # Academic year runs from October 1st to September 30th
+    now = datetime.now(ZoneInfo('Europe/Vienna'))
+    current_year = now.year
+    current_month = now.month
+    
+    # Determine academic year start (October = month 10)
+    if current_month >= 10:
+        academic_year = current_year
+    else:
+        academic_year = current_year - 1
+    
+    # Valid year groups for this academic year
+    # LAV: 3rd, 2nd, 1st year (academic_year - 2, -1, 0)
+    # MAV: Master (academic_year)
+    valid_years = {
+        f'LAV{str(academic_year - 2)[-2:]}',
+        f'LAV{str(academic_year - 1)[-2:]}',
+        f'LAV{str(academic_year)[-2:]}',
+        f'MAV{str(academic_year)[-2:]}'
+    }
+    
+    # Extract year group from end (e.g., "LAV 2023" or "MAV 2025")
+    year_match = re.search(r'\(([A-Z]+)\s*(\d{4})\)\s*$', title)
+    year_group = ''
+    if year_match:
+        # Convert "LAV 2023" to "LAV23"
+        extracted_year = year_match.group(1) + year_match.group(2)[-2:]
+        # Only use if it matches valid years for current academic year
+        if extracted_year in valid_years:
+            year_group = extracted_year
+    
+    # Extract room (pattern: AP149.02.212, EA11.01.123, ES7a.EG.005)
+    # Street codes: AP, EA, ES followed by building number, floor, room
+    room = ''
+    room_match = re.search(r'(AP|EA|ES)\d+[a-z]?\.\w+\.\w+', title, re.IGNORECASE)
+    if room_match:
+        room = room_match.group(0).upper()
+    
+    # Determine event type and extract lecture name
+    if title.startswith('Prüfungstermin:'):
+        event_type = 'EXAM'
+        # For exams: "Prüfungstermin: B22.0587404 25S 3SSt IL Kunst- und Faserverbundwerkstoffe  bei Windbacher..."
+        # Extract the lecture name between course code and "bei"
+        title_part = title.replace('Prüfungstermin:', '').strip()
+        # Match pattern: skip course code, capture lecture name until "bei"
+        exam_match = re.search(r'[A-Z]\d+\.\d+\s+\d+[SW]\s+\d+SSt\s+[A-Z]+\s+(.+?)\s+bei\s+', title_part)
+        if exam_match:
+            lecture_name = exam_match.group(1).strip()
+        else:
+            # Fallback: take first part before "bei"
+            lecture_name = title_part.split('bei')[0].strip()
+            # Remove course code pattern if present
+            lecture_name = re.sub(r'^[A-Z]\d+\.\d+\s+\d+[SW]\s+\d+SSt\s+[A-Z]+\s+', '', lecture_name)
+    else:
+        event_type = 'CLASS'
+        # For regular lectures: "Flugmechanik und Drehflügler (-114060) (IL), Arnold..."
+        # Extract name before first parenthesis with course code
+        lecture_match = re.match(r'^(.+?)\s*\([-\d]+\)', title)
+        if lecture_match:
+            lecture_name = lecture_match.group(1).strip()
+        else:
+            # Fallback: take everything before first comma
+            lecture_name = title.split(',')[0].strip()
+            # Remove parenthetical content
+            lecture_name = re.sub(r'\s*\([^)]*\)\s*', ' ', lecture_name).strip()
+    
+    return lecture_name, room, year_group, event_type
+    
+    return course_name, room, event_type
+
+
 def save_flight_routes_cache(cache):
     """Save flight routes cache to file"""
     try:
@@ -1095,6 +1246,35 @@ def get_transport():
         
     except Exception as e:
         logger.error(f"Error fetching transport: {e}")
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+
+@app.route('/api/dashboard/timetable')
+def get_timetable():
+    """Get upcoming lectures from FH JOANNEUM Almaty timetable API"""
+    try:
+        config = load_dashboard_config()
+        timetable_config = config.get('timetable', {})
+        
+        if not timetable_config.get('enabled', False):
+            return jsonify({'success': True, 'lectures': []})
+        
+        cohort = timetable_config.get('cohort', '').strip()
+        if not cohort:
+            return jsonify({'success': True, 'lectures': []})
+        
+        max_items = timetable_config.get('max_items', 5)
+        
+        # Get lectures from Almaty API
+        lectures = get_almaty_lectures(cohort, max_items)
+        
+        return jsonify({
+            'success': True,
+            'lectures': lectures
+        })
+        
+    except Exception as e:
+        logger.error(f"Error fetching timetable: {e}")
         return jsonify({'success': False, 'message': str(e)}), 500
 
 
