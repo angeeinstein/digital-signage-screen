@@ -666,7 +666,7 @@ def get_trias_departures(stop_id, limit=10):
         return []
 
 
-def get_almaty_lectures(cohort, max_items=5):
+def get_almaty_lectures(cohort, max_items=5, time_window_hours=24):
     """Get upcoming lectures from FH JOANNEUM Almaty timetable API"""
     try:
         # Build date range: today to 14 days ahead
@@ -674,6 +674,9 @@ def get_almaty_lectures(cohort, max_items=5):
         start_date = now.strftime('%Y-%m-%d')
         end_date = (now.replace(hour=0, minute=0, second=0, microsecond=0) + 
                     timedelta(days=14)).strftime('%Y-%m-%d')
+        
+        # Calculate cutoff time based on time window
+        cutoff_time = now + timedelta(hours=time_window_hours)
         
         # Determine which cohorts to query
         if cohort:
@@ -737,8 +740,8 @@ def get_almaty_lectures(cohort, max_items=5):
                 # Convert to Europe/Vienna timezone
                 start_local = start_dt.astimezone(ZoneInfo('Europe/Vienna'))
                 
-                # Only include future events
-                if start_local <= now:
+                # Only include future events within the time window
+                if start_local <= now or start_local > cutoff_time:
                     continue
                 
                 # Parse title to extract course name, room, year group, and type
@@ -1295,12 +1298,13 @@ def get_timetable():
             return jsonify({'success': True, 'lectures': []})
         
         max_items = timetable_config.get('max_items', 5)
+        time_window_hours = timetable_config.get('time_window_hours', 24)
         
         # Get cohort from config, or use all valid year groups
         cohort = timetable_config.get('cohort', '').strip()
         
         # Get lectures from Almaty API (automatically handles all year groups if cohort is empty)
-        lectures = get_almaty_lectures(cohort, max_items)
+        lectures = get_almaty_lectures(cohort, max_items, time_window_hours)
         
         return jsonify({
             'success': True,
