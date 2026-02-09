@@ -335,9 +335,9 @@
         
         .timetable-item {
             display: grid;
-            grid-template-columns: 80px 1fr 180px;
+            grid-template-columns: 95px 1fr 150px;
             align-items: center;
-            gap: 15px;
+            gap: 12px;
             padding: 8px 12px;
             background: rgba(255, 255, 255, 0.1);
             border-radius: 0;
@@ -361,19 +361,17 @@
             border-left: 3px solid #ff9800;
         }
         
-        .timetable-item > span {
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-        }
-        
         .timetable-time {
             font-weight: bold;
             font-size: calc(20px * var(--font-scale));
+            overflow: visible;
         }
         
         .timetable-course {
             font-size: calc(18px * var(--font-scale));
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
         }
         
         .timetable-room {
