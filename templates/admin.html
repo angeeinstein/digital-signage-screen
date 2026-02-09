@@ -528,23 +528,23 @@
             </div>
             <p class="help-text">
                 Using FH JOANNEUM Almaty timetable API - no API key required<br>
-                Enter your cohort code to display upcoming lectures
+                Automatically shows all year groups: LAV23, LAV24, LAV25, MAV25
             </p>
             
             <div class="form-group">
-                <label for="timetableCohort">Cohort Search Query</label>
-                <input type="text" id="timetableCohort" placeholder="e.g., LAV2023, MAV2025">
+                <label for="timetableCohort">Filter by Cohort (Optional)</label>
+                <input type="text" id="timetableCohort" placeholder="Leave empty for all cohorts, or enter LAV2023, MAV2025, etc.">
                 <div class="help-text">
-                    Enter your cohort code as it appears in the timetable system.<br>
-                    Try both formats if one doesn't work: "LAV2023" or "LAV 2023"
+                    <strong>Leave empty to show all year groups automatically.</strong><br>
+                    Or enter a specific cohort to filter (e.g., "LAV2023" or "LAV 2023")
                 </div>
             </div>
             
             <div class="form-group">
                 <label for="timetableMaxItems">Maximum Items to Display: <span id="timetableMaxValue">5</span></label>
-                <input type="range" id="timetableMaxItems" min="3" max="10" value="5" step="1" 
+                <input type="range" id="timetableMaxItems" min="3" max="15" value="5" step="1" 
                        oninput="document.getElementById('timetableMaxValue').textContent = this.value">
-                <div class="help-text">Number of upcoming lectures to show (3-10)</div>
+                <div class="help-text">Number of upcoming lectures to show (3-15)</div>
             </div>
             
             <button class="btn btn-secondary" onclick="testTimetableAPI()">🧪 Test Timetable API</button>

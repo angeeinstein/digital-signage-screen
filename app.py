@@ -79,7 +79,7 @@ DEFAULT_DASHBOARD_CONFIG = {
     },
     'timetable': {
         'enabled': True,
-        'cohort': '',  # Search query for cohort (e.g., 'LAV2023', 'MAV2025')
+        'cohort': '',  # Optional: filter by specific cohort (e.g., 'LAV2023'). Leave empty for all year groups
         'max_items': 5  # Maximum number of upcoming lectures to display
     }
 }
@@ -675,18 +675,53 @@ def get_almaty_lectures(cohort, max_items=5):
         end_date = (now.replace(hour=0, minute=0, second=0, microsecond=0) + 
                     timedelta(days=14)).strftime('%Y-%m-%d')
         
-        # Fetch from Almaty API
+        # Determine which cohorts to query
+        if cohort:
+            # Use specific cohort from config
+            cohorts_to_query = [cohort]
+        else:
+            # Calculate valid year groups based on current academic year
+            current_year = now.year
+            current_month = now.month
+            
+            # Determine academic year start (October = month 10)
+            if current_month >= 10:
+                academic_year = current_year
+            else:
+                academic_year = current_year - 1
+            
+            # Generate all valid cohorts for this academic year
+            # Format for API: "LAV 2023", "MAV 2025" (with space and full year)
+            cohorts_to_query = [
+                f"LAV {academic_year - 2}",  # 3rd year LAV
+                f"LAV {academic_year - 1}",  # 2nd year LAV
+                f"LAV {academic_year}",      # 1st year LAV
+                f"MAV {academic_year}"       # Master MAV
+            ]
+        
+        # Fetch lectures for all cohorts
+        all_events = []
         url = 'https://almaty.fh-joanneum.at/stundenplan/json.php'
-        params = {
-            'q': cohort,
-            'start': start_date,
-            'end': end_date
-        }
         
-        response = requests.get(url, params=params, timeout=10)
-        response.raise_for_status()
+        for query_cohort in cohorts_to_query:
+            try:
+                params = {
+                    'q': query_cohort,
+                    'start': start_date,
+                    'end': end_date
+                }
+                
+                response = requests.get(url, params=params, timeout=10)
+                response.raise_for_status()
+                
+                events = response.json()
+                if isinstance(events, list):
+                    all_events.extend(events)
+            except Exception as e:
+                logger.warning(f"Error fetching lectures for cohort {query_cohort}: {e}")
+                continue
         
-        events = response.json()
+        events = all_events
         
         # Filter and process events
         lectures = []
@@ -1259,13 +1294,12 @@ def get_timetable():
         if not timetable_config.get('enabled', False):
             return jsonify({'success': True, 'lectures': []})
         
-        cohort = timetable_config.get('cohort', '').strip()
-        if not cohort:
-            return jsonify({'success': True, 'lectures': []})
-        
         max_items = timetable_config.get('max_items', 5)
         
-        # Get lectures from Almaty API
+        # Get cohort from config, or use all valid year groups
+        cohort = timetable_config.get('cohort', '').strip()
+        
+        # Get lectures from Almaty API (automatically handles all year groups if cohort is empty)
         lectures = get_almaty_lectures(cohort, max_items)
         
         return jsonify({
