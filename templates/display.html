@@ -256,6 +256,26 @@
             white-space: nowrap;
         }
         
+        .timetable-header {
+            display: grid;
+            grid-template-columns: 110px 1fr 135px;
+            align-items: center;
+            gap: 12px;
+            padding: 8px 12px;
+            font-size: calc(11px * var(--font-scale));
+            opacity: 0.6;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+            margin-bottom: 6px;
+        }
+        
+        .timetable-header > div {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        
         .transport-list {
             display: flex;
             flex-direction: column;
@@ -478,7 +498,7 @@
                 <div class="widget-header" style="margin-bottom: 10px;">
                     <span>Next Lectures</span>
                 </div>
-                <div class="transport-header">
+                <div class="timetable-header">
                     <div>Time</div>
                     <div>Course</div>
                     <div>Room</div>
