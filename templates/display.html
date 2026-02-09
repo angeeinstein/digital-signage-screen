@@ -455,8 +455,9 @@
             
             <!-- Transport integrated into weather widget -->
             <div style="margin-top: 15px; padding-top: 15px; border-top: 2px solid rgba(255,255,255,0.2);">
-                <div class="widget-header" style="margin-bottom: 10px;">
+                <div class="widget-header" style="margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center;">
                     <span id="transport-title">Next Departures</span>
+                    <span id="transport-status" style="font-size: 12px; padding: 3px 8px; border-radius: 3px; background: rgba(40, 167, 69, 0.3); color: #fff;">●</span>
                 </div>
                 <div class="transport-header">
                     <div>Line</div>
@@ -727,12 +728,19 @@
         
         // Load transport
         async function loadTransport() {
+            const statusIndicator = document.getElementById('transport-status');
             try {
                 const response = await fetch('/api/dashboard/transport');
                 const data = await response.json();
                 
                 if (data.success && data.departures.length > 0) {
                     const list = document.getElementById('transport-list');
+                    
+                    // Update connection status to green (connected)
+                    statusIndicator.style.background = 'rgba(40, 167, 69, 0.3)';
+                    statusIndicator.style.color = '#28a745';
+                    statusIndicator.textContent = '●';
+                    statusIndicator.title = 'Connected - Data is current';
                     
                     // Update title with stop name if available
                     if (data.stop_name) {
@@ -775,9 +783,21 @@
                             </span>
                         </div>
                     `).join('');
+                } else {
+                    // API returned success but no data
+                    statusIndicator.style.background = 'rgba(255, 193, 7, 0.3)';
+                    statusIndicator.style.color = '#ffc107';
+                    statusIndicator.textContent = '●';
+                    statusIndicator.title = 'No departure data available';
                 }
             } catch (error) {
                 console.error('Failed to load transport:', error);
+                // Update connection status to red (disconnected/error)
+                const statusIndicator = document.getElementById('transport-status');
+                statusIndicator.style.background = 'rgba(220, 53, 69, 0.3)';
+                statusIndicator.style.color = '#dc3545';
+                statusIndicator.textContent = '●';
+                statusIndicator.title = 'Connection error - Data may be outdated';
             }
         }
         
