@@ -333,7 +333,8 @@
             gap: 6px;
         }
         
-        .timetable-item {
+        .timetable-item,
+        .transport-item {
             display: grid;
             grid-template-columns: 110px 1fr 135px;
             align-items: center;
@@ -344,7 +345,8 @@
             font-size: calc(18px * var(--font-scale));
         }
         
-        .timetable-item.now {
+        .timetable-item.now,
+        .transport-item.now {
             background: rgba(255, 152, 0, 0.2);
             border-left: 3px solid #ff9800;
         }
