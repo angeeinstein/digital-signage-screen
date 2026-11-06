@@ -69,11 +69,22 @@ def display():
     store = _cfg()
     return ok(
         version=__version__,
+        build=_build_id(),
         revision=store.revision,
         server_time=datetime.now(timezone.utc).isoformat(),
         config=public_view(store.get()),
         sources=_svc().snapshot(),
     )
+
+
+def _build_id() -> str:
+    """Changes whenever a new frontend is built, so open displays reload themselves."""
+    from . import FRONTEND_DIST
+
+    try:
+        return str(int((FRONTEND_DIST / "index.html").stat().st_mtime))
+    except OSError:
+        return "none"
 
 
 # --- auth -----------------------------------------------------------------------------

@@ -1,0 +1,5 @@
+# Shell scripts and service files run on Linux: always LF.
+* text=auto eol=lf
+*.png binary
+*.svg text eol=lf
+*.rtf binary

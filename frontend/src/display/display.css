@@ -1,0 +1,555 @@
+/*
+ * Display layout. Everything is sized in rem, and the root font size scales
+ * with the viewport, so the same layout works at 1080p and 4K. Panels use
+ * min-height: 0 all the way down so lists shrink to the available space and
+ * AutoFitList decides how many rows fit.
+ */
+
+html.is-display {
+  font-size: calc(var(--scale) * clamp(11px, 0.55vw + 0.45vh, 32px));
+}
+
+.display {
+  height: 100vh;
+  width: 100vw;
+  overflow: hidden;
+  display: grid;
+  grid-template-columns: minmax(0, 1.85fr) minmax(0, 1fr);
+  gap: 0.75rem;
+  padding: 0.75rem;
+}
+
+.display.boot {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.boot-msg {
+  color: var(--muted);
+  font-size: 1.5rem;
+}
+
+.col-left,
+.col-right {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  min-height: 0;
+  min-width: 0;
+}
+
+/* Left: map on top, flights below (flights get a share, map the rest). */
+.map-panel {
+  flex: 1 1 55%;
+  padding: 0 !important;
+  overflow: hidden;
+}
+
+.map-panel iframe {
+  flex: 1 1 auto;
+  min-height: 0;
+  width: 100%;
+  border: 0;
+  display: block;
+}
+
+.col-left .panel-flights {
+  flex: 0 1 42%;
+}
+
+.no-map .col-left .panel-flights {
+  flex: 1 1 auto;
+}
+
+.no-flights .map-panel {
+  flex: 1 1 auto;
+}
+
+/* Right: header sized by content, lists share the rest. */
+.col-right .header-panel {
+  flex: 0 0 auto;
+}
+
+.col-right .panel-departures {
+  flex: 1 1 0;
+}
+
+.col-right .panel-lectures {
+  flex: 1.25 1 0;
+}
+
+/* --- panels --- */
+.panel {
+  background: var(--panel);
+  border: 1px solid var(--panel-border);
+  border-radius: var(--radius);
+  padding: 0.85rem 1rem;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  min-width: 0;
+  backdrop-filter: blur(8px);
+}
+
+.panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.6rem;
+  flex: none;
+}
+
+.panel-title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 650;
+  min-width: 0;
+}
+
+.panel-title span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.panel-title .icon {
+  color: var(--accent);
+}
+
+.panel-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex: none;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.panel-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  position: relative;
+}
+
+.empty {
+  height: 100%;
+  min-height: 3rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--muted);
+  font-size: 1rem;
+  text-align: center;
+}
+
+/* --- status indicator --- */
+.status {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  white-space: nowrap;
+}
+
+.status-dot {
+  width: 0.55rem;
+  height: 0.55rem;
+  border-radius: 50%;
+  background: var(--ok);
+  box-shadow: 0 0 0.4rem var(--ok);
+}
+
+.status-pending .status-dot {
+  background: var(--muted);
+  box-shadow: none;
+}
+
+.status-stale .status-dot {
+  background: var(--warn);
+  box-shadow: 0 0 0.4rem var(--warn);
+}
+
+.status-stale {
+  color: var(--warn);
+}
+
+.status-error .status-dot {
+  background: var(--bad);
+  box-shadow: 0 0 0.4rem var(--bad);
+}
+
+.status-error {
+  color: var(--bad);
+}
+
+/* --- fit list / tables --- */
+.fit-list {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.fit-row {
+  flex: none;
+}
+
+.fit-row.is-clipped {
+  visibility: hidden;
+}
+
+.tr {
+  position: relative;
+  display: grid;
+  align-items: center;
+  column-gap: 0.9rem;
+  padding: 0.45rem 0.7rem;
+  background: var(--row);
+  border-radius: 0.4rem;
+  font-size: 1.05rem;
+  overflow: hidden;
+}
+
+.tr > * {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tr.th {
+  background: none;
+  padding-top: 0;
+  padding-bottom: 0.15rem;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+}
+
+.num {
+  text-align: right;
+}
+
+.strong {
+  font-weight: 650;
+}
+
+.cell-stack {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.2;
+}
+
+.cell-stack > * {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cell-stack small,
+.tr small {
+  font-size: 0.75em;
+  color: var(--muted);
+}
+
+/* Flights: icon | flight | airline | route | type | alt | speed | dist */
+.flights .tr {
+  grid-template-columns:
+    1.8rem minmax(5.5rem, 0.9fr) minmax(0, 1fr) minmax(0, 1.7fr) minmax(4rem, 0.8fr)
+    minmax(6.5rem, auto) minmax(4.5rem, auto) minmax(4.5rem, auto);
+}
+
+.ac-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ac-icon img {
+  width: 1.5rem;
+  height: 1.5rem;
+  object-fit: contain;
+  filter: brightness(0) invert(1);
+  opacity: 0.9;
+}
+
+.trend {
+  width: 0.9em;
+  height: 0.9em;
+  margin-left: 0.2em;
+  vertical-align: -0.1em;
+}
+
+.trend.up {
+  color: var(--ok);
+}
+
+.trend.down {
+  color: var(--accent);
+}
+
+.tr.emergency {
+  background: rgba(255, 107, 107, 0.25);
+  box-shadow: inset 3px 0 0 var(--bad);
+}
+
+/* Departures: line | destination | countdown | time | rt */
+.departures .tr {
+  grid-template-columns: minmax(4rem, auto) minmax(0, 1fr) minmax(4rem, auto) minmax(3.5rem, auto) 3rem;
+}
+
+.line-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.line-badge .mode {
+  width: 1em;
+  height: 1em;
+  color: var(--muted);
+  flex: none;
+}
+
+.line-badge strong {
+  min-width: 2.2rem;
+  text-align: center;
+  padding: 0.05rem 0.4rem;
+  border-radius: 0.3rem;
+  background: rgba(124, 196, 255, 0.18);
+}
+
+.rt {
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  text-align: center;
+  padding: 0.15rem 0;
+  border-radius: 0.25rem;
+}
+
+.rt.live {
+  color: var(--ok);
+  background: rgba(61, 220, 132, 0.12);
+}
+
+.rt.delayed {
+  color: var(--warn);
+  background: rgba(255, 201, 77, 0.14);
+}
+
+.rt.plan {
+  color: var(--muted);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.late {
+  color: var(--warn);
+}
+
+.tr.cancelled .dest,
+.tr.cancelled .line-badge {
+  text-decoration: line-through;
+  opacity: 0.6;
+}
+
+.tr.cancelled .num.strong {
+  color: var(--bad);
+}
+
+/* Lectures: time | course | room */
+.lectures .tr {
+  grid-template-columns: minmax(3.6rem, auto) minmax(0, 1fr) minmax(5rem, auto);
+}
+
+.course {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-width: 0;
+}
+
+.course strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+.tag {
+  flex: none;
+  font-size: 0.68em;
+  font-weight: 700;
+  padding: 0.1rem 0.35rem;
+  border-radius: 0.25rem;
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--muted);
+}
+
+.tag.kind-exam {
+  background: rgba(255, 107, 107, 0.2);
+  color: var(--exam);
+}
+
+.tr.ongoing {
+  background: rgba(255, 183, 77, 0.14);
+  box-shadow: inset 3px 0 0 var(--now);
+}
+
+.tr.soon {
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+
+.tr.exam {
+  box-shadow: inset 3px 0 0 var(--bad);
+}
+
+.progress {
+  position: absolute !important;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 3px;
+  background: var(--now);
+  transform-origin: left;
+  opacity: 0.8;
+}
+
+.room {
+  font-weight: 600;
+}
+
+.fit-header {
+  margin-top: 0.25rem;
+}
+
+.day-sep {
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--accent);
+  padding: 0 0.2rem;
+}
+
+/* --- header: clock + weather --- */
+.header-panel {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 1.25rem;
+  align-items: center;
+}
+
+.clock-time {
+  font-size: 3.1rem;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: -0.02em;
+}
+
+.clock-date {
+  margin-top: 0.35rem;
+  color: var(--muted);
+  font-size: 0.95rem;
+  white-space: nowrap;
+}
+
+.weather {
+  min-width: 0;
+}
+
+.weather-main {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  min-width: 0;
+}
+
+.weather-main > div {
+  min-width: 0;
+}
+
+.weather-icon {
+  width: 2.8rem;
+  height: 2.8rem;
+  color: var(--accent);
+  flex: none;
+}
+
+.weather-temp {
+  font-size: 2rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.weather-cond {
+  font-size: 0.9rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.weather-status {
+  margin-left: auto;
+  align-self: flex-start;
+  font-size: 0.75rem;
+}
+
+.weather-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.35rem 0.8rem;
+  margin: 0.6rem 0 0;
+  font-size: 0.88rem;
+}
+
+.weather-item {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  min-width: 0;
+}
+
+.weather-item dt {
+  color: var(--muted);
+  display: flex;
+}
+
+.weather-item dd {
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* --- offline banner --- */
+.offline-banner {
+  position: fixed;
+  left: 50%;
+  bottom: 1rem;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.6rem 1.1rem;
+  background: rgba(255, 107, 107, 0.92);
+  color: #fff;
+  border-radius: 999px;
+  font-weight: 600;
+  box-shadow: 0 0.5rem 2rem rgba(0, 0, 0, 0.4);
+}
+
+/* Portrait screens: stack the columns. */
+@media (orientation: portrait) {
+  .display {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1.2fr) minmax(0, 1fr);
+  }
+}
