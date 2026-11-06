@@ -1,465 +1,156 @@
-# Digital Signage - Aviation Student Dashboard
+# Digital Signage – Aviation Student Dashboard
 
-[![GitHub](https://img.shields.io/badge/GitHub-angeeinstein-blue?logo=github)](https://github.com/angeeinstein/digital-signage-screen)
-[![Python](https://img.shields.io/badge/Python-3.7%2B-blue?logo=python)](https://www.python.org/)
-[![Raspberry Pi](https://img.shields.io/badge/Raspberry%20Pi-5-red?logo=raspberry-pi)](https://www.raspberrypi.com/)
+A full-screen information display for aviation students at FH JOANNEUM Graz,
+built for a Raspberry Pi driving a TV. It shows:
 
-A full-screen information dashboard for aviation students, showing live flight tracking, weather, transport, and lecture schedules. Built with Flask and Gunicorn, designed for Raspberry Pi 5.
+- **Live air traffic**: an ADS-B Exchange map, plus the nearest aircraft with
+  airline, route, type, altitude, speed and distance
+- **Weather** in aviation units: wind (°/kt, gusts), QNH, visibility, dew point
+- **Public transport departures** from a configurable stop, with real-time delays and cancellations
+- **Upcoming lectures** from the FH JOANNEUM timetable, including lectures in progress and exams
 
-## Features
+Everything is configured in a browser at `/admin`.
 
-- ⏰ **Time & Date** - Large, always-visible clock
-- ✈️ **Live Flight Tracking** - Real-time aircraft via ADS-B Exchange
-- 🌤️ **Weather Information** - Aviation-relevant data (wind, visibility, pressure)
-- 🚌 **Public Transport** - Next bus/tram departures
-- 📅 **Lecture Timetable** - Smart scheduling for multiple year groups
-- 🔄 **Auto-refresh** - All data updates automatically
-- 🎨 **Modern UI** - Glass-morphism design with gradients
-- ⚙️ **Web Configuration** - Easy setup via browser
-- 🚀 **Systemd Service** - Automatic startup and management
-- 🔧 **Automated Installation** - Zero manual configuration required
+## Install on a Raspberry Pi
 
-## System Requirements
-
-- Raspberry Pi 5 (or compatible Debian/Ubuntu system)
-- Python 3.7+
-- Root access (sudo)
-- Internet connection for initial setup
-
-## Quick Start
-
-### One-Command Installation
-
-Run this single command on your Raspberry Pi:
 ```bash
 curl -sSL https://raw.githubusercontent.com/angeeinstein/digital-signage-screen/main/install.sh | sudo bash
 ```
 
-**Or clone and run locally:**
-```bash
-git clone https://github.com/angeeinstein/digital-signage-screen.git
-cd digital-signage-screen
-sudo bash install.sh
-```
+The installer:
 
-The script will:
-- Install all required system packages
-- Set up Python virtual environment
-- Install Python dependencies
-- Configure systemd service
-- **Optionally** set up Nginx reverse proxy (asks during install)
-- Configure permissions
-- Start the service automatically
+- installs Python, git and Node.js (from NodeSource if the system's version is too old)
+- clones the app to `/opt/digital-signage`
+- builds the frontend
+- sets up a systemd service
 
-### Accessing the Display
+It can optionally put nginx in front, so the dashboard is reachable on port 80.
 
-Once installed, access your digital signage at:
-- **Main Display**: `http://<raspberry-pi-ip>:8080/`
-- **Admin Panel**: `http://<raspberry-pi-ip>:8080/admin`
+Then open `http://<pi-address>:8080/admin`, log in with **admin / admin** and
+set a new password (you will be asked to). Set the location, pick your stop,
+and save. The display at `http://<pi-address>:8080/` picks up changes within a
+few seconds.
 
-**Note**: The installer will show you the exact IP address at the end. Default port is 8080 to avoid permission issues.
-
-### Default Admin Credentials
-
-**⚠️ IMPORTANT SECURITY NOTICE**
-
-On first run, the admin panel is protected with default credentials:
-- **Username**: `admin`
-- **Password**: `admin`
-
-**You must change these credentials immediately after first login!**
-
-1. Login at `/admin` with default credentials
-2. Click "🔑 Change Password" in the header
-3. Enter current password and your new secure password
-4. Click "Change Password"
-
-The system will create an `admin_auth.json` file with hashed credentials (never stores passwords in plain text).
-
-## Installation Script Features
-
-The `install.sh` script handles everything automatically:
-
-### First Installation
-- Detects and installs missing packages
-- Creates all necessary directories
-- Sets up Python virtual environment
-- Configures systemd service
-- Fixes all permissions
-- **Asks if you want Nginx** (optional reverse proxy)
-- Handles port 80 binding without root
-
-### Existing Installation Detected
-When run on a system with existing installation, you get options:
-
-1. **Update**: Preserves content and configuration
-2. **Reinstall**: Clean install (removes all data)
-3. **Repair**: Fixes permissions and service issues
-4. **Uninstall**: Complete removal
-5. **Cancel**: Exit without changes
-
-### Update Features
-- Automatic backup before updates (keeps last 5 backups)
-- Zero downtime deployment
-- Preserves all content and configuration
-- Automatic rollback capability
-
-## Adding Content
-
-### Method 1: Admin Panel (Recommended)
-1. Navigate to `http://<raspberry-pi-ip>/admin`
-2. Upload images or videos
-3. Configure display settings
-
-### Method 2: Direct File Copy
-Copy files to the content directory:
-```bash
-sudo cp /path/to/your/image.jpg /opt/digital-signage/content/
-sudo chown pi:pi /opt/digital-signage/content/image.jpg
-```
-
-Supported formats:
-- Images: `.jpg`, `.jpeg`, `.png`, `.gif`
-- Videos: `.mp4`, `.webm`
-
-## Configuration
-
-### Display Settings
-Configure via admin panel:
-- **Display Name**: Custom name for your display
-- **Refresh Interval**: Time between content changes (seconds)
-- **Rotation Enabled**: Enable/disable automatic content rotation
-
-Configuration is stored in `/opt/digital-signage/config.json`
-
-### Service Management
+Running `install.sh` again on an installed system offers **Update**, **Repair** and
+**Uninstall**. The same actions are available without the menu:
 
 ```bash
-# Start service
-sudo systemctl start digital-signage
-
-# Stop service
-sudo systemctl stop digital-signage
-
-# Restart service
-sudo systemctl restart digital-signage
-
-# View status
-sudo systemctl status digital-signage
-
-# View logs
-sudo journalctl -u digital-signage -f
+sudo bash /opt/digital-signage/install.sh --update
+sudo bash /opt/digital-signage/install.sh --repair
+sudo bash /opt/digital-signage/install.sh --help    # all options (port, nginx, user, branch)
 ```
 
-## File Locations
+Updates never touch your settings. Everything the app writes lives in
+`/opt/digital-signage/data/`, which git ignores, and every update first backs
+it up to `/var/backups/digital-signage/`. Upgrading from v1 migrates the old
+`dashboard_config.json` and `admin_auth.json` automatically.
 
-- **Installation**: `/opt/digital-signage/`
-- **Content**: `/opt/digital-signage/content/`
-- **Logs**: `/var/log/digital-signage/`
-- **Service**: `/etc/systemd/system/digital-signage.service`
-- **Backups**: `/opt/digital-signage-backup-*`
+### Showing it full-screen (kiosk)
 
-## Troubleshooting
-
-### Quick Diagnostic
-
-Run this to see what's wrong:
-```bash
-curl -sSL https://raw.githubusercontent.com/angeeinstein/digital-signage-screen/main/diagnose.sh | sudo bash
-```
-
-### Service won't start
-
-**Check service status and logs:**
-```bash
-sudo systemctl status digital-signage
-sudo journalctl -u digital-signage -n 100 --no-pager
-```
-
-**Check what's using port 80:**
-```bash
-sudo lsof -i :80
-# or
-sudo netstat -tulpn | grep :80
-```
-
-**Common issues and fixes:**
-
-1. **Port 80 permission denied / "Retrying in 1 second" error**
-   
-   This means something is blocking port 80. Fix it:
-   
-   ```bash
-   # Stop nginx if it's running
-   sudo systemctl stop nginx
-   sudo systemctl disable nginx
-   
-   # Give Python permission to use port 80
-   sudo setcap 'cap_net_bind_service=+ep' /opt/digital-signage/venv/bin/python3
-   
-   # Restart the service
-   sudo systemctl restart digital-signage
-   
-   # Check if it's working
-   sudo systemctl status digital-signage
-   curl http://localhost/api/health
-   ```
-   
-   **Alternative - Use port 8080 instead:**
-   ```bash
-   sudo nano /opt/digital-signage/gunicorn_config.py
-   # Change line: bind = "0.0.0.0:8080"
-   sudo systemctl restart digital-signage
-   # Access at: http://YOUR_IP:8080
-   ```
-
-2. **Port 80 already in use**
-   ```bash
-   # Option 1: Set capabilities (done automatically by installer)
-   sudo setcap 'cap_net_bind_service=+ep' /opt/digital-signage/venv/bin/python3
-   
-   # Option 2: Use port 8080 instead
-   # Edit /opt/digital-signage/gunicorn_config.py
-   # Change: bind = "0.0.0.0:8080"
-   sudo systemctl restart digital-signage
-   ```
-
-2. **Missing Python packages**
-   ```bash
-   cd /opt/digital-signage
-   source venv/bin/activate
-   pip install -r requirements.txt
-   sudo systemctl restart digital-signage
-   ```
-
-3. **Templates not found**
-   ```bash
-   # Ensure templates directory exists
-   ls -la /opt/digital-signage/templates/
-   
-   # If missing, re-run installer
-   curl -sSL https://raw.githubusercontent.com/angeeinstein/digital-signage-screen/main/install.sh | sudo bash
-   # Choose option 3 (Repair)
-   ```
-
-4. **Permission errors**
-   ```bash
-   sudo chown -R pi:pi /opt/digital-signage
-   sudo chmod -R 755 /opt/digital-signage
-   sudo systemctl restart digital-signage
-   ```
-
-**Run diagnostic test:**
-```bash
-curl -sSL https://raw.githubusercontent.com/angeeinstein/digital-signage-screen/main/test-install.sh | sudo bash
-```
-
-### Service won't start
-```bash
-# Check service status
-sudo systemctl status digital-signage
-
-# View detailed logs
-sudo journalctl -u digital-signage -n 100
-
-# Repair installation
-sudo bash install.sh
-# Choose option 3 (Repair)
-```
-
-### Port 80 access issues
-The script configures port 80 access automatically. If issues persist:
-```bash
-# Use alternative port 8080 (via Nginx)
-http://<raspberry-pi-ip>:8080
-```
-
-### Permission issues
-```bash
-# Run repair
-sudo bash install.sh
-# Choose option 3 (Repair)
-```
-
-### Content not displaying
-1. Check content directory: `ls -la /opt/digital-signage/content/`
-2. Verify file permissions: `sudo chown -R pi:pi /opt/digital-signage/content/`
-3. Check file formats (only supported formats will display)
-
-## Auto-start on Boot
-
-The service is automatically configured to start on boot. To verify:
-```bash
-sudo systemctl is-enabled digital-signage
-```
-
-## Updating
-
-To update to a new version:
-
-**Quick Update (Recommended):**
-```bash
-curl -sSL https://raw.githubusercontent.com/angeeinstein/digital-signage-screen/main/install.sh | sudo bash
-```
-Choose option 1 (Update) when prompted.
-
-**Alternative: If already installed locally**
-```bash
-cd /opt/digital-signage
-sudo bash install.sh
-```
-Choose option 1 (Update) when prompted.
-
-The update process:
-- Pulls latest code from GitHub
-- Creates automatic backup of content and config
-- Preserves all content and configuration
-- Updates code and dependencies
-- Restarts service
-- Keeps last 5 backups for safety
-
-## Uninstalling
-
-To completely remove Digital Signage:
-```bash
-sudo bash install.sh
-# Choose option 4 (Uninstall)
-```
-
-This removes:
-- Service and systemd configuration
-- Application files
-- Log files
-- Nginx configuration
-
-## Security Notes
-
-- Default setup runs on port 80 (requires sudo for install)
-- Service runs as user 'pi' (not root)
-- Admin panel has no authentication (add auth for public networks)
-- Consider firewall rules for production use
-
-## Customization
-Using Nginx (Recommended for Production)
-
-If you didn't enable Nginx during installation, you can add it later:
+Raspberry Pi OS (Bookworm or later, Wayland/labwc desktop), logged in automatically as the desktop user:
 
 ```bash
-# Install nginx
-sudo apt install -y nginx
-
-# Create config
-sudo nano /etc/nginx/sites-available/digital-signage
+sudo raspi-config nonint do_blanking 1          # disable screen blanking
+mkdir -p ~/.config/labwc
+cat >> ~/.config/labwc/autostart <<'EOF'
+chromium-browser --kiosk --noerrdialogs --disable-infobars --no-first-run \
+  --disable-session-crashed-bubble --check-for-update-interval=31536000 \
+  http://localhost:8080/ &
+EOF
 ```
 
-Add:
-```nginx
-server {
-    listen 80;
-    server_name _;
+On Debian Trixie–based images the browser binary is called `chromium`. The
+display reconnects on its own if the server restarts, and it reloads itself
+after an update.
 
-    location / {
-        proxy_pass http://127.0.0.1:5000;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-    }
-}
+## How it works
+
+```
+ Browser (React)                     Flask app (one gunicorn process)
+ ───────────────                     ───────────────────────────────────────────────
+ /            display  ── polls ──▶  /api/display ◀── snapshots ── background pollers
+ /admin       settings               /api/admin/*                   ├─ flights   (15 s)
+                                                                    ├─ weather   (10 min)
+                                                                    ├─ transport (1 min)
+                                                                    └─ timetable (5 min)
 ```
 
-Enable and restart:
-```bash
-# Update gunicorn to use port 5000
-sudo nano /opt/digital-signage/gunicorn_config.py
-# Change: bind = "127.0.0.1:5000"
+The backend fetches every data source on its own background thread. HTTP
+requests only read the latest snapshot, so a slow or failing upstream API
+can't stall the screen. When a fetch fails, the last good data stays up with
+an "updated x min ago" marker, rather than the panel going blank.
 
-# Enable nginx site
-sudo ln -s /etc/nginx/sites-available/digital-signage /etc/nginx/sites-enabled/
-sudo rm /etc/nginx/sites-enabled/default
-sudo nginx -t
-sudo systemctl reload nginx
-sudo systemctl restart digital-signage
-```
+| Panel | Source | Key needed |
+|---|---|---|
+| Aircraft | adsb.lol, adsb.fi, airplanes.live (tried in order) | no |
+| Routes | adsbdb.com by callsign; AirLabs as an optional fallback | AirLabs only |
+| Weather | Open-Meteo, or OpenWeatherMap | OWM only |
+| Departures | TRIAS API of Verbund Linie (Austria) | no |
+| Lectures | `almaty.fh-joanneum.at` timetable JSON | no |
 
-### 
-### Change Port
-Edit `gunicorn_config.py`:
-```python
-bind = "0.0.0.0:8080"  # Change to desired port
-```
+### Lessons learned (why v2 looks the way it does)
 
-### Adjust Workers
-For different hardware, edit `gunicorn_config.py`:
-```python
-workers = 2  # Adjust based on CPU cores
-```
-
-### Custom Styling
-Edit templates in `templates/` directory:
-- `display.html` - Main display page
-- `admin.html` - Admin panel
-- `404.html` - Not found page
-- `500.html` - Error page
-
-## API Endpoints
-
-- `GET /` - Main display page
-- `GET /admin` - Admin panel
-- `GET /api/config` - Get configuration
-- `POST /api/config` - Update configuration
-- `GET /api/content` - List content files
-- `DELETE /api/content/<filename>` - Delete content
-- `GET /api/health` - Health check
-- `GET /content/<filename>` - Serve content file
+- **airplanes.live returns HTTP 403** to API clients that haven't registered
+  with them. This was the main reason the v1 flight list was often empty.
+  It's now only the last fallback.
+- **`dst` in readsb APIs is nautical miles**, not km. Distances are now
+  computed from the coordinates.
+- **OpenSky's flight history is 2–3 days old**, so routes taken from it were
+  often wrong. Routes now come from adsbdb by callsign. A route is hidden if
+  the aircraft's position isn't plausibly on the way between the two airports.
+- **TRIAS stop search** works much better with the town name ("Graz Alte
+  Poststraße"). The admin search adds it automatically and ranks nearby stops first.
+- **Lecture titles** follow a fixed pattern. Parsing is covered by tests in
+  `tests/test_providers.py` using real responses.
+- **List overflow:** the display measures each list and only shows rows that
+  fit completely ("6 of 9"). Every cell truncates with "…" instead of
+  overflowing.
 
 ## Development
 
-To run in development mode:
+You need Python ≥ 3.9 and Node.js ≥ 20.19.
+
 ```bash
-cd /opt/digital-signage
-source venv/bin/activate
-python app.py
+python -m venv .venv && .venv/bin/pip install -r requirements-dev.txt
+cd frontend && npm ci && cd ..
+
+python app.py                      # backend on http://127.0.0.1:5000
+cd frontend && npm run dev         # frontend on http://localhost:5173 (proxies /api)
 ```
 
-Access at: `http://localhost:5000`
+Set `SIGNAGE_DATA_DIR` to keep development settings away from the repo (the
+default is `./data`).
 
-## Support
+Checks (CI runs the same):
 
-For issues, questions, or contributions:
-1. Check logs: `sudo journalctl -u digital-signage -f`
-2. Run repair: `sudo bash install.sh` (option 3)
-3. Check file permissions
-4. Verify network connectivity
-5. Open an issue on GitHub: https://github.com/angeeinstein/digital-signage-screen/issues
-
-## Contributing
-
-Contributions are welcome! See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
-
-## Repository
-
-GitHub: https://github.com/angeeinstein/digital-signage-screen
-
-## License
-
-MIT License - Feel free to use and modify for your needs.
-
-### Aircraft Icon Attribution
-
-The aircraft SVG icons used in this project are provided by [ADS-B Radar](https://adsb-radar.com). These icons are free to use for personal and commercial projects with attribution.
-
-**Required Attribution:**
-Please provide a backlink to ADS-B Radar somewhere in your project, website, or documentation - or support them by purchasing the [ADS-B Radar App](https://apps.apple.com/app/id1538149835).
-
-**Example attribution:**
-```
-Icons by ADS-B Radar for macOS - https://adsb-radar.com - https://apps.apple.com/app/id1538149835
+```bash
+ruff check . && pytest -q                       # backend
+cd frontend && npx tsc -b && npx vitest run     # frontend
 ```
 
-## Version
+CI also runs `install.sh` on a fresh Ubuntu machine, and checks that the
+service comes up and that an update keeps the settings.
 
-Current Version: 1.0.0
+### Layout
 
-## Author
+```
+signage/            Flask backend
+  api.py            HTTP endpoints (/api/display public, /api/admin/* login required)
+  config.py         settings schema, validation, v1 migration
+  auth.py           password hashing, login throttling, CSRF guard
+  poller.py         background refresh with stale/error tracking
+  services.py       wires settings → data sources → pollers
+  providers/        one module per external API
+frontend/src/
+  display/          the TV screen (AutoFitList, panels)
+  admin/            settings UI
+tests/              pytest suite + recorded API responses
+docs/trias-api.md   notes on the TRIAS API
+```
 
-Created by angeeinstein
+## Credits
+
+Aircraft silhouettes: `static/icons/adsb_icons` (see the attribution file in
+that folder). Flight data: the adsb.lol, adsb.fi and airplanes.live
+communities; routes from adsbdb.com. Weather: Open-Meteo.com (CC BY 4.0).
+Transport: Verbund Linie TRIAS open data.

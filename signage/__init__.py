@@ -57,6 +57,12 @@ def create_app(data_dir: str | os.PathLike | None = None, start_pollers: bool | 
         "signage.services": services,
     })
 
+    if os.environ.get("SIGNAGE_BEHIND_PROXY") == "1":
+        # Behind nginx: use X-Forwarded-For so login throttling sees real clients.
+        from werkzeug.middleware.proxy_fix import ProxyFix
+
+        app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)  # type: ignore[method-assign]
+
     app.before_request(csrf_protect)
     app.register_blueprint(api_bp)
 

@@ -1,77 +1,75 @@
-name: CI/CD
+name: CI
 
 on:
   push:
-    branches: [ main, develop ]
+    branches: [main]
   pull_request:
-    branches: [ main ]
-  release:
-    types: [ created ]
 
 jobs:
-  test:
+  backend:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ['3.9', '3.10', '3.11']
-    
+        # 3.11 = Raspberry Pi OS Bookworm, 3.13 = Trixie
+        python-version: ["3.11", "3.13"]
     steps:
-    - uses: actions/checkout@v3
-    
-    - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v4
-      with:
-        python-version: ${{ matrix.python-version }}
-    
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install -r requirements.txt
-        pip install pytest flake8
-    
-    - name: Lint with flake8
-      run: |
-        # Stop the build if there are Python syntax errors or undefined names
-        flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
-        # Exit-zero treats all errors as warnings
-        flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
-    
-    - name: Test Flask app
-      run: |
-        # Create minimal config files for testing
-        mkdir -p content
-        echo '{"location":{"lat":50.0,"lon":8.0}}' > dashboard_config.json
-        # Test import
-        python -c "from flask import Flask; print('Flask imports successfully')"
-        # Basic syntax check
-        python -m py_compile app.py
-        echo "App syntax is valid"
-  
-  validate-scripts:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+      - run: pip install -r requirements-dev.txt
+      - run: ruff check .
+      - run: pytest -q
+        env:
+          SIGNAGE_LOG_LEVEL: WARNING
+
+  frontend:
     runs-on: ubuntu-latest
-    
+    defaults:
+      run:
+        working-directory: frontend
     steps:
-    - uses: actions/checkout@v3
-    
-    - name: Validate shell scripts
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y shellcheck
-        shellcheck install.sh || true
-    
-    - name: Check file permissions
-      run: |
-        chmod +x install.sh
-        echo "Script is executable"
-  
-  release-notes:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - run: npx tsc -b
+      - run: npx vitest run
+      - run: npx vite build
+
+  install-script:
+    # Runs the real installer on a fresh Ubuntu machine (systemd + sudo),
+    # then checks the service answers and survives an update.
     runs-on: ubuntu-latest
-    if: github.event_name == 'release'
-    
     steps:
-    - uses: actions/checkout@v3
-    
-    - name: Create release notes
-      run: |
-        echo "Digital Signage Display v$(cat .version) released!"
-        echo "Installation: curl -sSL https://raw.githubusercontent.com/angeeinstein/digital-signage-screen/main/install.sh | sudo bash"
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: ShellCheck
+        run: shellcheck install.sh
+      - name: Install from this checkout
+        run: |
+          git branch -f ci-install HEAD
+          sudo SIGNAGE_REPO="$PWD" bash install.sh --yes --no-nginx --branch ci-install --user signage
+      - name: Check the running service
+        run: |
+          curl -fsS http://127.0.0.1:8080/api/health
+          curl -fsS http://127.0.0.1:8080/ | grep -q '<div id="root">'
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8080/api/admin/config)" = 401
+          sudo test -f /opt/digital-signage/data/secret_key
+          sudo stat -c '%a %U' /opt/digital-signage/data/auth.json | grep -q '^600 signage$'
+      - name: Update keeps settings
+        run: |
+          curl -fsS -c ck -b ck -H 'X-Requested-With: signage' -H 'Content-Type: application/json' \
+            -d '{"username":"admin","password":"admin"}' http://127.0.0.1:8080/api/auth/login
+          curl -fsS -c ck -b ck -X PUT -H 'X-Requested-With: signage' -H 'Content-Type: application/json' \
+            -d '{"config":{"location":{"name":"CI Town"}}}' http://127.0.0.1:8080/api/admin/config
+          sudo SIGNAGE_REPO="$PWD" bash /opt/digital-signage/install.sh --update --yes --no-nginx --branch ci-install
+          curl -fsS http://127.0.0.1:8080/api/display | grep -q 'CI Town'
+      - name: Service logs
+        if: always()
+        run: sudo journalctl -u digital-signage -n 100 --no-pager || true
