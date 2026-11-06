@@ -14,7 +14,7 @@ Everything is configured in a browser at `/admin`.
 ## Install on a Raspberry Pi
 
 ```bash
-curl -sSL https://raw.githubusercontent.com/angeeinstein/digital-signage-screen/main/install.sh | sudo bash
+curl -fsSL https://raw.githubusercontent.com/angeeinstein/digital-signage-screen/main/install.sh | sudo bash
 ```
 
 The installer:

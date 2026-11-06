@@ -2,7 +2,7 @@
 ################################################################################
 # Digital Signage (aviation dashboard) - install / update / repair / uninstall
 #
-#   curl -sSL https://raw.githubusercontent.com/angeeinstein/digital-signage-screen/main/install.sh | sudo bash
+#   curl -fsSL https://raw.githubusercontent.com/angeeinstein/digital-signage-screen/main/install.sh | sudo bash
 #
 # Options (all optional):
 #   --update | --repair | --uninstall   run that action without the menu
