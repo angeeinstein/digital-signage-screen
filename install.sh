@@ -176,7 +176,10 @@ fetch_code() {
         backup_data
         git -C "$INSTALL_DIR" remote set-url origin "$REPO_URL"
         git -C "$INSTALL_DIR" fetch --quiet origin "$BRANCH"
-        git -C "$INSTALL_DIR" checkout --quiet -B "$BRANCH" "origin/$BRANCH"
+        # --force: v1 tracked runtime files (dashboard_config.json, content/)
+        # that were edited in place. They are already in data/legacy and the
+        # backup above, so local changes to tracked files can be discarded.
+        git -C "$INSTALL_DIR" checkout --quiet --force -B "$BRANCH" "origin/$BRANCH"
         git -C "$INSTALL_DIR" reset --quiet --hard "origin/$BRANCH"
         ok "Updated to $(git -C "$INSTALL_DIR" log -1 --format='%h %s')"
     else
