@@ -1,0 +1,17 @@
+[project]
+name = "digital-signage-screen"
+version = "2.0.0"
+requires-python = ">=3.9"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = [".", "tests"]
+
+[tool.ruff]
+line-length = 120
+target-version = "py39"
+extend-exclude = ["frontend", ".venv", "venv"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "B", "UP", "I"]
+ignore = ["UP007", "UP045", "B008"]

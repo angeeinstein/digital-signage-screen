@@ -1,0 +1,182 @@
+[
+	{
+		"id": "LAV2024_1032561",
+		"title": "Sustainable Aviation Fuels (-114053) (Vorlesung (VO)), Kraft Gerhard, Standardgruppe, ., AP149 AP149.02.201 (LAV 2024)",
+		"start": "2026-11-06T09:00:00",
+		"end": "2026-11-06T12:15:00",
+		"allday": false,
+		"className": "timetable_group_Standardgruppe",
+		"color": "#11BBA6",
+		"description": ""
+	},
+	{
+		"id": "LAV2024_1033120",
+		"title": "Flugmechanik und Drehfl\u00fcgler (-114060) (Integrierte Lehrveranstaltung (IL)), Arnold Uwe T.P., Standardgruppe, Online (LAV 2024)",
+		"start": "2026-11-06T13:45:00",
+		"end": "2026-11-06T17:00:00",
+		"allday": false,
+		"className": "timetable_group_Standardgruppe",
+		"color": "#11BBA6",
+		"description": ""
+	},
+	{
+		"id": "LAV2024_1032637",
+		"title": "Wissenschaftliches Arbeiten (-114043) (Seminar (SE)), Burgsteiner Gabriele, Standardgruppe, ., AP149 AP149.02.201 (LAV 2024)",
+		"start": "2026-11-09T09:00:00",
+		"end": "2026-11-09T11:30:00",
+		"allday": false,
+		"className": "timetable_group_Standardgruppe",
+		"color": "#11BBA6",
+		"description": ""
+	},
+	{
+		"id": "LAV2024_1043637",
+		"title": "K\u00fcnstliche Intelligenz in der Luftfahrt (-114068) (Integrierte Lehrveranstaltung (IL)), Fallast Arno, Standardgruppe, ., AP149 AP149.02.201 (LAV 2024)",
+		"start": "2026-11-09T13:00:00",
+		"end": "2026-11-09T14:30:00",
+		"allday": false,
+		"className": "timetable_group_Standardgruppe",
+		"color": "#11BBA6",
+		"description": ""
+	},
+	{
+		"id": "LAV2024_1043399",
+		"title": "Kolben- und Verbrennungskraftmaschinen (-114079) (Integrierte Lehrveranstaltung (IL)), Sch\u00f6ffmann Wolfgang Johann, Standardgruppe, ., AP149 AP149.02.201 (LAV 2024)",
+		"start": "2026-11-09T15:00:00",
+		"end": "2026-11-09T17:30:00",
+		"allday": false,
+		"className": "timetable_group_Standardgruppe",
+		"color": "#11BBA6",
+		"description": ""
+	},
+	{
+		"id": "BVW2024_1070533",
+		"title": "FinanzvermittlerInnenrecht (-86490) (Vorlesung (VO)), Thelesklav Wolfgang, E-Learning, Asynchron (BVW 2024)",
+		"start": "2026-11-09T16:00:00",
+		"end": "2026-11-09T19:00:00",
+		"allday": false,
+		"className": "timetable_group_E-Learning",
+		"color": "#A5BE0E",
+		"description": ""
+	},
+	{
+		"id": "LAV2024_1032568",
+		"title": "Professional Communication and Presentation (-114051) (Seminar (SE)), Tatzl Dietmar, Gruppe A, ., AP149 AP149.02.232 (LAV 2024)",
+		"start": "2026-11-10T09:45:00",
+		"end": "2026-11-10T12:15:00",
+		"allday": false,
+		"className": "timetable_group_Gruppe A",
+		"color": "#C7057E",
+		"description": ""
+	},
+	{
+		"id": "LAV2024_1061624",
+		"title": "Professional Communication and Presentation (-114051) (Seminar (SE)), Tatzl Dietmar, Gruppe A, ., AP149 AP149.02.232 (LAV 2024)",
+		"start": "2026-11-10T13:00:00",
+		"end": "2026-11-10T14:30:00",
+		"allday": false,
+		"className": "timetable_group_Gruppe A",
+		"color": "#C7057E",
+		"description": ""
+	},
+	{
+		"id": "LAV2024_1061622",
+		"title": "Aerodynamik (-114102) (Integrierte Lehrveranstaltung (IL)), Crepeau John, Standardgruppe, ., AP149 AP149.02.201 (LAV 2024)",
+		"start": "2026-11-10T15:00:00",
+		"end": "2026-11-10T17:30:00",
+		"allday": false,
+		"className": "timetable_group_Standardgruppe",
+		"color": "#11BBA6",
+		"description": ""
+	},
+	{
+		"id": "LAV2024_1043652",
+		"title": "K\u00fcnstliche Intelligenz in der Luftfahrt (-114068) (Integrierte Lehrveranstaltung (IL)), Fallast Arno, Standardgruppe, ., AP149 AP149.02.201 (LAV 2024)",
+		"start": "2026-11-11T08:30:00",
+		"end": "2026-11-11T10:00:00",
+		"allday": false,
+		"className": "timetable_group_Standardgruppe",
+		"color": "#11BBA6",
+		"description": ""
+	},
+	{
+		"id": "LAV2024_1043639",
+		"title": "K\u00fcnstliche Intelligenz in der Luftfahrt (-114068) (Integrierte Lehrveranstaltung (IL)), Fallast Arno, Standardgruppe, ., AP149 AP149.02.224 (LAV 2024)",
+		"start": "2026-11-11T10:15:00",
+		"end": "2026-11-11T11:45:00",
+		"allday": false,
+		"className": "timetable_group_Standardgruppe",
+		"color": "#11BBA6",
+		"description": ""
+	},
+	{
+		"id": "LAV2024_1032628",
+		"title": "Elektrische Antriebe und Flugzeugbordnetze (-114086) (Integrierte Lehrveranstaltung (IL)), Woditschka Peter, Standardgruppe, ., AP149 AP149.02.201 (LAV 2024)",
+		"start": "2026-11-11T12:30:00",
+		"end": "2026-11-11T16:45:00",
+		"allday": false,
+		"className": "timetable_group_Standardgruppe",
+		"color": "#11BBA6",
+		"description": ""
+	},
+	{
+		"id": "LAV2024_1033098",
+		"title": "Wissenschaftliches Arbeiten (-114043) (Seminar (SE)), Burgsteiner Gabriele, Gruppe B, ExternerOrt (LAV 2024)",
+		"start": "2026-11-12T08:00:00",
+		"end": "2026-11-12T09:30:00",
+		"allday": false,
+		"className": "timetable_group_Gruppe B",
+		"color": "#0216CA",
+		"description": ""
+	},
+	{
+		"id": "LAV2024_1033101",
+		"title": "Wissenschaftliches Arbeiten (-114043) (Seminar (SE)), Burgsteiner Gabriele, Gruppe B, ., AP149 AP149.02.224 (LAV 2024)",
+		"start": "2026-11-12T10:00:00",
+		"end": "2026-11-12T12:15:00",
+		"allday": false,
+		"className": "timetable_group_Gruppe B",
+		"color": "#0216CA",
+		"description": ""
+	},
+	{
+		"id": "LAV2024_1043367",
+		"title": "Thermische Turbomaschinen und Strahlantriebe (-114025) (Integrierte Lehrveranstaltung (IL)), Molnar Vojtech, Standardgruppe, ., AP149 AP149.02.201 (LAV 2024)",
+		"start": "2026-11-12T13:00:00",
+		"end": "2026-11-12T14:30:00",
+		"allday": false,
+		"className": "timetable_group_Standardgruppe",
+		"color": "#11BBA6",
+		"description": ""
+	},
+	{
+		"id": "LAV2024_1043369",
+		"title": "Thermische Turbomaschinen und Strahlantriebe (-114025) (Integrierte Lehrveranstaltung (IL)), Molnar Vojtech, Standardgruppe, ., AP149 AP149.02.201 (LAV 2024)",
+		"start": "2026-11-12T15:00:00",
+		"end": "2026-11-12T17:30:00",
+		"allday": false,
+		"className": "timetable_group_Standardgruppe",
+		"color": "#11BBA6",
+		"description": ""
+	},
+	{
+		"id": "LAV2024_1032646",
+		"title": "Wissenschaftliches Arbeiten (-114043) (Seminar (SE)), Burgsteiner Gabriele, Gruppe A, ExternerOrt (LAV 2024)",
+		"start": "2026-11-13T09:00:00",
+		"end": "2026-11-13T11:15:00",
+		"allday": false,
+		"className": "timetable_group_Gruppe A",
+		"color": "#C7057E",
+		"description": ""
+	},
+	{
+		"id": "LAV2024_1062712",
+		"title": "Pr\u00fcfungstermin: B22.0587404 26S 3SSt IL Kunst- und Faserverbundwerkstoffe  bei Windbacher-Schwager, -, ., AP149 AP149.02.201 (LAV 2024)",
+		"start": "2026-11-13T13:30:00",
+		"end": "2026-11-13T15:30:00",
+		"allday": false,
+		"className": "timetable_group_",
+		"color": "#CB013C",
+		"description": ""
+	}
+]
