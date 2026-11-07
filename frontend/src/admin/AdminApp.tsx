@@ -12,10 +12,12 @@ import {
   Newspaper,
   Plane,
   Save,
+  Tv,
 } from "lucide-react";
 import { api, ApiError } from "../lib/api";
 import type { Config } from "../lib/types";
 import { Announcements } from "./Announcements";
+import { MonitoringCard, ScreenCard } from "./ScreenCard";
 import { ShareCard } from "./ShareCard";
 import { Login } from "./Login";
 import { PasswordDialog } from "./PasswordDialog";
@@ -39,6 +41,7 @@ const PAGES: { title: string; pages: Page[] }[] = [
     title: "General",
     pages: [
       { id: "status", label: "Status", icon: Activity, keys: [] },
+      { id: "screen", label: "Screen", icon: Tv, keys: ["monitoring"] },
       { id: "location", label: "Location & display", icon: MapPin, keys: ["location", "display"] },
     ],
   },
@@ -206,6 +209,8 @@ function AdminPanel({ session, onSessionChange }: { session: Session; onSessionC
 
         <div className="admin-content">
           {page === "status" && <StatusOverview />}
+          {page === "screen" && <ScreenCard />}
+          {draft && page === "screen" && <MonitoringCard draft={draft} setDraft={setDraft} />}
           {page !== "status" && !draft && <div className="card">Loading…</div>}
           {draft && page === "announcements" && (
             <>

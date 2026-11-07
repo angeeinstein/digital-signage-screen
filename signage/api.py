@@ -21,6 +21,7 @@ from .providers import timetable as timetable_mod
 from .providers import transport as transport_mod
 from .providers import weather as weather_mod
 from .services import Services
+from .share import is_local_screen
 
 logger = logging.getLogger(__name__)
 bp = Blueprint("api", __name__, url_prefix="/api")
@@ -75,13 +76,16 @@ def display():
     store = _cfg()
     svc = _svc()
     config = store.get()
+    if is_local_screen(request.environ, request.headers):
+        svc.kiosk.display_seen = time.time()  # the TV is showing the dashboard
     return ok(
         version=__version__,
-        build=_build_id(),
+        # Changing the reload token makes open displays reload themselves.
+        build=f"{_build_id()}.{svc.kiosk.reload_token}",
         revision=store.revision,
         server_time=datetime.now(timezone.utc).isoformat(),
         config=public_view(config),
-        sources={k: v for k, v in svc.snapshot().items() if k != "news"},
+        sources={k: v for k, v in svc.snapshot().items() if k not in ("news", "heartbeat")},
         ticker={"speed": config["ticker"]["speed"], "items": svc.ticker_items()},
         slides={
             "items": svc.slides(),

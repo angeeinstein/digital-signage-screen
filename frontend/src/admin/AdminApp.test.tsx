@@ -24,6 +24,7 @@ const config: Config = {
   },
   announcements: { slides_enabled: true, slide_every_minutes: 5, slide_seconds: 15 },
   share: { enabled: false, relay_enabled: true, public_url: "", max_minutes: 120 },
+  monitoring: { heartbeat_url: "", interval_minutes: 5, require_display: true },
 };
 
 function mockFetch(loggedIn: boolean) {

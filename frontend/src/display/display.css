@@ -6,6 +6,7 @@
  */
 
 html.is-display {
+  cursor: none;
   font-size: calc(var(--scale) * clamp(11px, 0.55vw + 0.45vh, 32px));
 }
 

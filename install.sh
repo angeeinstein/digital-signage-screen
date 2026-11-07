@@ -10,6 +10,8 @@
 #   --user NAME                         user the service runs as
 #   --port N                            HTTP port of the app (default: 8080)
 #   --nginx | --no-nginx                put nginx on port 80 in front (asks if omitted)
+#   --kiosk | --no-kiosk                set up the kiosk browser on this Pi's desktop (asks if omitted)
+#   --kiosk-user NAME                   desktop user for the kiosk (default: detected)
 #   --yes                               don't ask questions, use defaults
 #
 # Environment: SIGNAGE_REPO overrides the git URL (CI uses a local checkout),
@@ -33,6 +35,9 @@ ACTION=""
 USE_NGINX=""
 ASSUME_YES=0
 SERVICE_USER="${SIGNAGE_USER:-}"
+USE_KIOSK=""
+KIOSK_USER=""
+KIOSK_NEEDS_REBOOT=0
 
 RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'; BLUE='\033[0;34m'; NC='\033[0m'
 info()    { echo -e "${BLUE}[INFO]${NC} $*"; }
@@ -59,6 +64,9 @@ parse_args() {
             --port) PORT="$2"; shift ;;
             --nginx) USE_NGINX="yes" ;;
             --no-nginx) USE_NGINX="no" ;;
+            --kiosk) USE_KIOSK="yes" ;;
+            --no-kiosk) USE_KIOSK="no" ;;
+            --kiosk-user) KIOSK_USER="$2"; shift ;;
             --yes|-y) ASSUME_YES=1 ;;
             -h|--help) echo "See the header of install.sh for options."; exit 0 ;;
             *) die "Unknown option: $1" ;;
@@ -312,6 +320,10 @@ summary() {
     echo "  Logs:     sudo journalctl -u $SERVICE_NAME -f"
     echo "  Restart:  sudo systemctl restart $SERVICE_NAME"
     echo "  Update:   sudo bash $INSTALL_DIR/install.sh --update"
+    if [[ $KIOSK_NEEDS_REBOOT -eq 1 ]]; then
+        echo
+        echo -e "  ${YELLOW}Reboot to start the kiosk helper: sudo reboot${NC}"
+    fi
     echo
 }
 
@@ -349,6 +361,131 @@ remove_browser_policy() {
     done
 }
 
+################################################################################
+# Kiosk: browser autostart + helper (crash recovery, remote control)
+################################################################################
+
+KIOSK_SUDOERS="/etc/sudoers.d/$SERVICE_NAME-kiosk"
+KIOSK_DESKTOP_NAME="$SERVICE_NAME-kiosk.desktop"
+KIOSK_MARK="# digital-signage kiosk helper"
+
+kiosk_home() { getent passwd "$1" | cut -d: -f6; }
+
+detect_kiosk_user() {
+    # The user running the desktop session (not necessarily the service user).
+    [[ -n "$KIOSK_USER" ]] && return 0
+    KIOSK_USER="$(ps -o user= -C labwc,wayfire,lxsession,openbox 2>/dev/null | head -1 | tr -d ' ')" || true
+    if [[ -z "$KIOSK_USER" && -f "$KIOSK_SUDOERS" ]]; then
+        KIOSK_USER="$(awk '{print $1; exit}' "$KIOSK_SUDOERS")"
+    fi
+}
+
+choose_kiosk() {
+    detect_kiosk_user
+    if [[ -z "$USE_KIOSK" ]]; then
+        if [[ -f "$KIOSK_SUDOERS" ]]; then
+            USE_KIOSK="yes"   # set up before: keep it up to date
+        elif [[ -z "$KIOSK_USER" ]]; then
+            USE_KIOSK="no"    # no desktop session (headless or CI)
+        else
+            local a
+            a="$(ask "Set up the kiosk browser for '$KIOSK_USER' (autostart, crash recovery, remote control from admin)? [Y/n]" y)"
+            if [[ "$a" =~ ^[Nn] ]]; then USE_KIOSK="no"; else USE_KIOSK="yes"; fi
+        fi
+    fi
+    if [[ "$USE_KIOSK" == "yes" && -z "$KIOSK_USER" ]]; then
+        warn "No desktop user found; use --kiosk-user NAME. Skipping kiosk setup."
+        USE_KIOSK="no"
+    fi
+}
+
+# Comment out autostart lines that start Chromium on the dashboard, so the
+# browser doesn't run twice. Each changed file is backed up once.
+disable_old_kiosk() {
+    local home="$1" f
+    for f in "$home/.config/labwc/autostart" "$home/.config/wayfire.ini" \
+             "$home/.config/lxsession/LXDE-pi/autostart" \
+             /etc/xdg/labwc/autostart /etc/xdg/lxsession/LXDE-pi/autostart; do
+        [[ -f "$f" ]] || continue
+        if grep -vE '^[[:space:]]*#' "$f" | grep -iE 'chrom' | grep -qE 'localhost|127\.0\.0\.1'; then
+            [[ -f "$f.before-signage-kiosk" ]] || cp -p "$f" "$f.before-signage-kiosk"
+            sed -i -E '/^[[:space:]]*#/! { /[Cc]hrom/ { /localhost|127\.0\.0\.1/ { /kiosk\/agent\.py/! s/^/# disabled by digital-signage (the kiosk helper starts the browser now): / } } }' "$f"
+            info "Disabled the old browser autostart in $f (backup: $f.before-signage-kiosk)"
+        fi
+    done
+    for f in "$home"/.config/autostart/*.desktop /etc/xdg/autostart/*.desktop; do
+        [[ -f "$f" && "$(basename "$f")" != "$KIOSK_DESKTOP_NAME" ]] || continue
+        if grep -iE '^Exec=.*chrom' "$f" | grep -qE 'localhost|127\.0\.0\.1'; then
+            mv "$f" "$f.disabled-by-signage"
+            info "Disabled the old autostart entry $f"
+        fi
+    done
+    for f in "$home"/.config/systemd/user/*.service; do
+        [[ -f "$f" ]] || continue
+        if grep -iE '^ExecStart=.*chrom' "$f" | grep -qE 'localhost|127\.0\.0\.1'; then
+            warn "$f also starts the browser. Disable it, or the browser may run twice."
+        fi
+    done
+    return 0
+}
+
+setup_kiosk() {
+    header "Kiosk"
+    local home cmd tmp
+    home="$(kiosk_home "$KIOSK_USER")"
+    [[ -n "$home" && -d "$home" ]] || { warn "Home of '$KIOSK_USER' not found; skipping kiosk setup"; return 0; }
+    command -v grim >/dev/null || apt-get install -y -qq grim >/dev/null 2>&1 \
+        || warn "Could not install grim (needed for screenshots in admin)"
+    disable_old_kiosk "$home"
+
+    cmd="/usr/bin/python3 $INSTALL_DIR/kiosk/agent.py --url http://localhost:$PORT"
+    # XDG autostart (Raspberry Pi OS desktop with labwc or LXDE) ...
+    sudo -u "$KIOSK_USER" mkdir -p "$home/.config/autostart"
+    cat > "$home/.config/autostart/$KIOSK_DESKTOP_NAME" <<EOF
+[Desktop Entry]
+Type=Application
+Name=Digital Signage kiosk
+Comment=Starts the dashboard in Chromium and keeps it running
+Exec=$cmd
+X-GNOME-Autostart-enabled=true
+EOF
+    chown "$KIOSK_USER:" "$home/.config/autostart/$KIOSK_DESKTOP_NAME"
+    # ... and a user labwc autostart, which replaces the system one when it exists.
+    # The helper allows only one instance, so starting it twice is harmless.
+    if [[ -f "$home/.config/labwc/autostart" ]]; then
+        sed -i "/kiosk\/agent\.py/d" "$home/.config/labwc/autostart"
+        printf '%s &  %s\n' "$cmd" "$KIOSK_MARK" >> "$home/.config/labwc/autostart"
+    fi
+
+    # Let the helper reboot the Pi (admin page button), and nothing else.
+    tmp="$(mktemp)"
+    echo "$KIOSK_USER ALL=(root) NOPASSWD: /usr/bin/systemctl reboot" > "$tmp"
+    if visudo -cf "$tmp" >/dev/null; then
+        install -m 440 "$tmp" "$KIOSK_SUDOERS"
+    else
+        warn "Could not set up the reboot permission"
+    fi
+    rm -f "$tmp"
+
+    if pgrep -u "$KIOSK_USER" -f kiosk/agent.py >/dev/null; then
+        ok "Kiosk helper updated for '$KIOSK_USER' (takes effect after the next reboot)"
+    else
+        ok "Kiosk helper set up for '$KIOSK_USER'"
+        KIOSK_NEEDS_REBOOT=1
+    fi
+}
+
+remove_kiosk() {
+    detect_kiosk_user
+    [[ -n "$KIOSK_USER" ]] || return 0
+    local home
+    home="$(kiosk_home "$KIOSK_USER")"
+    rm -f "$home/.config/autostart/$KIOSK_DESKTOP_NAME" "$KIOSK_SUDOERS"
+    [[ -f "$home/.config/labwc/autostart" ]] && sed -i "/kiosk\/agent\.py/d" "$home/.config/labwc/autostart"
+    pkill -u "$KIOSK_USER" -f kiosk/agent.py 2>/dev/null || true
+    info "Kiosk helper removed. Your previous autostart files were kept as *.before-signage-kiosk / *.disabled-by-signage."
+}
+
 do_install() {
     detect_user
     install_packages
@@ -359,6 +496,8 @@ do_install() {
     install_service
     setup_nginx
     install_browser_policy
+    choose_kiosk
+    [[ "$USE_KIOSK" == "yes" ]] && setup_kiosk
     set_permissions
     start_and_check
     summary
@@ -375,6 +514,8 @@ do_update() {
     install_service
     setup_nginx
     install_browser_policy
+    choose_kiosk
+    [[ "$USE_KIOSK" == "yes" ]] && setup_kiosk
     set_permissions
     start_and_check
     summary
@@ -388,6 +529,8 @@ do_repair() {
     install_service
     setup_nginx
     install_browser_policy
+    choose_kiosk
+    [[ "$USE_KIOSK" == "yes" ]] && setup_kiosk
     set_permissions
     start_and_check
     summary
@@ -406,6 +549,7 @@ do_uninstall() {
         systemctl reload nginx 2>/dev/null || true
     fi
     remove_browser_policy
+    remove_kiosk
     rm -rf "$INSTALL_DIR"
     ok "Uninstalled. A backup of your settings is in /var/backups/digital-signage/"
 }

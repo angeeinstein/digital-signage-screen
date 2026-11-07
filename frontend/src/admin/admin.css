@@ -732,3 +732,60 @@ input[readonly] {
     white-space: nowrap;
   }
 }
+
+/* --- screen (remote control) --- */
+.screen-status {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  margin-bottom: 0.75rem;
+}
+
+.screen-status-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.screen-status-row .dot {
+  width: 0.6rem;
+  height: 0.6rem;
+  border-radius: 50%;
+  background: var(--muted);
+}
+
+.screen-status-row.ok .dot {
+  background: var(--ok);
+}
+
+.screen-status-row.warn .dot {
+  background: var(--warn);
+}
+
+.screen-status-row.bad .dot {
+  background: var(--bad);
+}
+
+.screen-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin: 0.5rem 0 0.75rem;
+}
+
+.screen-shot {
+  margin: 0.75rem 0 0;
+}
+
+.screen-shot img {
+  display: block;
+  width: 100%;
+  max-width: 48rem;
+  border: 1px solid var(--panel-border);
+  border-radius: 0.4rem;
+}
+
+.screen-shot figcaption {
+  margin-top: 0.35rem;
+}

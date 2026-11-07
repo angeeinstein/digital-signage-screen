@@ -133,6 +133,7 @@ export interface Config {
   };
   announcements: { slides_enabled: boolean; slide_every_minutes: number; slide_seconds: number };
   share: { enabled: boolean; relay_enabled: boolean; public_url: string; max_minutes: number };
+  monitoring: { heartbeat_url: string; interval_minutes: number; require_display: boolean };
 }
 
 export interface TickerItem {

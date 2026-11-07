@@ -54,21 +54,34 @@ it up to `/var/backups/digital-signage/`. Upgrading from v1 migrates the old
 
 ### Showing it full-screen (kiosk)
 
-Raspberry Pi OS (Bookworm or later, Wayland/labwc desktop), logged in automatically as the desktop user:
+On a Pi with a desktop (Raspberry Pi OS, logged in automatically), the
+installer offers to set up the **kiosk helper** (`kiosk/agent.py`). It runs in
+the desktop session and
 
-```bash
-sudo raspi-config nonint do_blanking 1          # disable screen blanking
-mkdir -p ~/.config/labwc
-cat >> ~/.config/labwc/autostart <<'EOF'
-chromium-browser --kiosk --noerrdialogs --disable-infobars --no-first-run \
-  --disable-session-crashed-bubble --check-for-update-interval=31536000 \
-  http://localhost:8080/ &
-EOF
-```
+- starts Chromium full-screen on the dashboard, and restarts it if it crashes
+  or the page stops updating;
+- carries out the buttons on the admin page's **Screen** section: reload the
+  display, restart the browser, restart the Pi, take a screenshot.
 
-On Debian Trixie–based images the browser binary is called `chromium`. The
-display reconnects on its own if the server restarts, and it reloads itself
-after an update.
+The installer registers the helper in the desktop autostart, comments out
+older autostart lines that start Chromium on `localhost` (keeping a backup
+`*.before-signage-kiosk`), allows that user to run `systemctl reboot` without
+a password (`/etc/sudoers.d/digital-signage-kiosk`) and installs `grim` for
+screenshots. Reboot once afterwards. Use `--kiosk` / `--no-kiosk` and
+`--kiosk-user NAME` to choose without being asked. The helper logs to
+`~/.cache/digital-signage-kiosk.log`.
+
+Also disable screen blanking: `sudo raspi-config nonint do_blanking 1`.
+
+### Monitoring
+
+Under **Screen → Monitoring** in admin, enter a check URL from
+[healthchecks.io](https://healthchecks.io) (or a similar service). The Pi then
+checks in every few minutes. When the check-ins stop (Pi off, network down),
+or the dashboard on the TV stops updating (sent as `/fail`), the service
+notifies you through whatever channel you set up there: Telegram, Signal,
+push, e-mail, etc. In healthchecks.io, set the check's period to the interval
+in admin and the grace time to about 10 minutes.
 
 ### Screen sharing
 
@@ -189,6 +202,8 @@ signage/            Flask backend
   ticker.py         aircraft events (emergencies, rare types) for the ticker
   announcements.py  announcements and uploaded images (data/media/)
   share.py          screen sharing: codes, signaling, fallback stream
+  kiosk.py          remote control of the screen, heartbeat
+kiosk/agent.py      helper in the Pi's desktop session (browser, commands)
   providers/        one module per external API
 frontend/src/
   display/          the TV screen (AutoFitList, panels, ticker, slides, shared screen)

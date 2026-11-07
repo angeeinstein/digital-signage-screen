@@ -10,7 +10,7 @@ from pathlib import Path
 
 from flask import Flask, abort, request, send_from_directory
 
-__version__ = "2.2.0"
+__version__ = "2.3.0"
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 FRONTEND_DIST = BASE_DIR / "frontend" / "dist"
@@ -24,6 +24,8 @@ def create_app(data_dir: str | os.PathLike | None = None, start_pollers: bool | 
     from .api import bp as api_bp
     from .auth import CredentialStore, LoginThrottle, csrf_protect, load_or_create_secret_key
     from .config import ConfigStore
+    from .kiosk import KioskHub
+    from .kiosk_api import bp as kiosk_bp
     from .providers.routes import RouteResolver
     from .public_url import PublicUrl
     from .services import Services
@@ -54,7 +56,8 @@ def create_app(data_dir: str | os.PathLike | None = None, start_pollers: bool | 
     routes = RouteResolver(data / "route_cache.json", make_session())
     media_dir = data / "media"
     announcements = AnnouncementStore(data / "announcements.json", media_dir)
-    services = Services(config, routes, announcements)
+    kiosk = KioskHub()
+    services = Services(config, routes, announcements, kiosk)
 
     app.extensions.update({
         "signage.config": config,
@@ -63,6 +66,7 @@ def create_app(data_dir: str | os.PathLike | None = None, start_pollers: bool | 
         "signage.services": services,
         "signage.announcements": announcements,
         "signage.share": ShareHub(),
+        "signage.kiosk": kiosk,
         "signage.public_url": PublicUrl(data / "public_url.json", lambda: config.get()["share"]["public_url"]),
     })
 
@@ -80,6 +84,7 @@ def create_app(data_dir: str | os.PathLike | None = None, start_pollers: bool | 
 
     app.register_blueprint(api_bp)
     app.register_blueprint(share_bp)
+    app.register_blueprint(kiosk_bp)
 
     @app.after_request
     def security_headers(resp):

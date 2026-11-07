@@ -1,5 +1,19 @@
 # Changelog
 
+## 2.3.0 – 2026-11-07
+
+### Added
+- **Kiosk helper** (`kiosk/agent.py`), set up by the installer on Pis with a desktop:
+  starts Chromium on the dashboard, restarts it when it crashes or the page freezes.
+- **Screen** section in admin: status of the TV and the helper, buttons to reload the
+  display, restart the browser, restart the Pi, and take a screenshot of the TV.
+- **Monitoring**: optional check-ins to healthchecks.io (or similar); reports a failure
+  when the dashboard on the TV stops updating, with a grace period after boot.
+- Pause/resume button and "Fill the screen" poster layout for announcements.
+
+### Changed
+- The mouse pointer is hidden on the display.
+
 ## 2.2.0 – 2026-11-07
 
 ### Added

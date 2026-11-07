@@ -11,6 +11,7 @@ from zoneinfo import ZoneInfo
 
 from .announcements import AnnouncementStore
 from .config import ConfigStore
+from .kiosk import KioskHub, send_heartbeat
 from .poller import Poller, SourceDisabled
 from .providers import flights as flights_mod
 from .providers import news as news_mod
@@ -25,10 +26,12 @@ logger = logging.getLogger(__name__)
 
 
 class Services:
-    def __init__(self, config: ConfigStore, routes: RouteResolver, announcements: AnnouncementStore):
+    def __init__(self, config: ConfigStore, routes: RouteResolver, announcements: AnnouncementStore,
+                 kiosk: KioskHub | None = None):
         self.config = config
         self.routes = routes
         self.announcements = announcements
+        self.kiosk = kiosk or KioskHub()
         self.aircraft_events = AircraftEvents()
         self.session = make_session()
         self._preview: tuple[str, float] | None = None  # (announcement id, until epoch)
@@ -40,6 +43,8 @@ class Services:
             "transport": Poller("transport", self._fetch_transport, cfg("transport", "refresh_seconds", 60)),
             "timetable": Poller("timetable", self._fetch_timetable, cfg("timetable", "refresh_seconds", 300)),
             "news": Poller("news", self._fetch_news, cfg("ticker", "refresh_seconds", 900), max_backoff=3600),
+            "heartbeat": Poller("heartbeat", self._heartbeat,
+                                lambda: config.get()["monitoring"]["interval_minutes"] * 60, max_backoff=600),
         }
         config.on_change(lambda _new: self.refresh_all())
 
@@ -100,6 +105,12 @@ class Services:
         if not c["timetable"]["enabled"]:
             raise SourceDisabled()
         return timetable_mod.fetch_lectures(self.session, c["timetable"], self.tz())
+
+    def _heartbeat(self) -> Any:
+        mc = self.config.get()["monitoring"]
+        if not mc["heartbeat_url"]:
+            raise SourceDisabled("No monitoring URL set")
+        return send_heartbeat(self.session, mc, self.kiosk)
 
     def _fetch_news(self) -> Any:
         tc = self.config.get()["ticker"]

@@ -20,6 +20,7 @@ CONFIG_VERSION = 2
 SECRET_FIELDS: list[tuple[str, str]] = [
     ("weather", "openweathermap_api_key"),
     ("routes", "airlabs_api_key"),
+    ("monitoring", "heartbeat_url"),  # contains the check's secret ID
 ]
 
 FLIGHT_PROVIDERS = ["adsb.lol", "adsb.fi", "airplanes.live"]
@@ -102,6 +103,11 @@ DEFAULTS: dict[str, Any] = {
         "relay_enabled": True,  # fall back to streaming through the server (e.g. Cloudflare)
         "public_url": "",  # empty = detected from requests that come through Cloudflare
         "max_minutes": 120,  # sharing ends after this (can be extended once by half); 0 = no limit
+    },
+    "monitoring": {
+        "heartbeat_url": "",  # e.g. https://hc-ping.com/<uuid>; empty = off
+        "interval_minutes": 5,
+        "require_display": True,  # report a failure when the TV isn't showing the dashboard
     },
     "announcements": {
         "slides_enabled": True,
@@ -264,6 +270,11 @@ SCHEMA: dict[str, dict[str, Callable[[Any], Any]]] = {
         "relay_enabled": _bool,
         "public_url": _url,
         "max_minutes": _num(0, 480, integer=True),
+    },
+    "monitoring": {
+        "heartbeat_url": _url,
+        "interval_minutes": _num(1, 60, integer=True),
+        "require_display": _bool,
     },
     "announcements": {
         "slides_enabled": _bool,

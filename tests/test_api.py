@@ -5,12 +5,14 @@ from conftest import H
 
 def test_display_is_public_and_has_no_secrets(client, app):
     app.extensions["signage.config"].update({"weather": {"openweathermap_api_key": "topsecret"},
-                                             "routes": {"airlabs_api_key": "alsosecret"}})
+                                             "routes": {"airlabs_api_key": "alsosecret"},
+                                             "monitoring": {"heartbeat_url": "https://hc-ping.com/secret-uuid"}})
     r = client.get("/api/display")
     assert r.status_code == 200
     body = r.get_json()
     assert set(body["sources"]) == {"flights", "weather", "transport", "timetable"}
     assert "topsecret" not in r.get_data(as_text=True) and "alsosecret" not in r.get_data(as_text=True)
+    assert "secret-uuid" not in r.get_data(as_text=True)
     assert body["revision"] >= 2
 
 
