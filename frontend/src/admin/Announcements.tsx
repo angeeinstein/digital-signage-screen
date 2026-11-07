@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
-import { ImageIcon, Megaphone, MonitorPlay, Pencil, Plus, Trash2 } from "lucide-react";
+import { Eye, EyeOff, ImageIcon, Megaphone, MonitorPlay, Pencil, Plus, Trash2 } from "lucide-react";
 import { api, ApiError, uploadFile } from "../lib/api";
 import type { Announcement } from "../lib/types";
 import { Card, Field, Select, TextArea, TextInput, Toggle } from "./fields";
@@ -39,6 +39,16 @@ export function Announcements() {
   const remove = async (a: Announcement) => {
     if (!confirm(`Delete "${a.title || "this announcement"}"?`)) return;
     await api(`/api/admin/announcements/${a.id}`, { method: "DELETE" }).catch((e) => setNotice({ kind: "error", text: e.message }));
+    load();
+  };
+
+  const toggleEnabled = async (a: Announcement) => {
+    try {
+      await api(`/api/admin/announcements/${a.id}`, { method: "PUT", body: { enabled: !a.enabled } });
+      setNotice({ kind: "ok", text: a.enabled ? `Paused "${a.title || "poster"}".` : `"${a.title || "Poster"}" is enabled again.` });
+    } catch (e) {
+      setNotice({ kind: "error", text: e instanceof ApiError ? e.message : String(e) });
+    }
     load();
   };
 
@@ -108,6 +118,14 @@ export function Announcements() {
               </div>
             </div>
             <div className="ann-actions">
+              <button
+                className="icon-btn"
+                title={a.enabled ? "Pause (hide without deleting)" : "Enable again"}
+                aria-label={a.enabled ? "Pause" : "Enable"}
+                onClick={() => toggleEnabled(a)}
+              >
+                {a.enabled ? <Eye className="icon" /> : <EyeOff className="icon" />}
+              </button>
               {a.as_slide && (
                 <button className="icon-btn" title="Show on the display now" onClick={() => showNow(a)}>
                   <MonitorPlay className="icon" />
