@@ -222,13 +222,14 @@ function TransportCard({ draft, set, update }: { draft: Config; set: Setter; upd
     <Card title="Public transport" icon={<BusFront className="icon" />}>
       <Toggle label="Show departures" checked={t.enabled} onChange={set("transport", "enabled")} help="Austrian TRIAS API (Verbund Linie), no key needed" />
       <div className="field">
-        <label>Find stop</label>
+        <label>Change stop</label>
         <div className="input-row">
-          <input value={query} placeholder="Stop name, or leave empty for stops nearby" onChange={(e) => setQuery(e.target.value)} onKeyDown={(e) => e.key === "Enter" && search()} />
+          <input value={query} placeholder="Stop name, e.g. Jakominiplatz" onChange={(e) => setQuery(e.target.value)} onKeyDown={(e) => e.key === "Enter" && search()} />
           <button type="button" className="btn btn-secondary" onClick={search} disabled={busy}>
             <Search className="icon" /> {busy ? "Searching…" : "Search"}
           </button>
         </div>
+        <div className="help">The display shows the one stop selected below. Search with an empty field to list the stops nearest to your location.</div>
         {error && <div className="help error-text">{error}</div>}
         {stops && (
           <div className="stop-results">
