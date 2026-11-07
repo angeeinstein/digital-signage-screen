@@ -34,7 +34,7 @@ from typing import Any
 
 logger = logging.getLogger(__name__)
 
-CODE_TTL_S = 60
+CODE_TTL_S = 30  # how long the code stays on the TV
 MAX_CODE_ATTEMPTS = 5
 SENDER_TIMEOUT_S = 35  # sender polls every <= 20 s
 SCREEN_TIMEOUT_S = 45
@@ -220,7 +220,7 @@ class ShareHub:
             active = self._senders.get(self._active or "")
             return {
                 "pending": {"code": pending.code, "name": pending.name,
-                            "expires": pending.created + CODE_TTL_S} if pending else None,
+                            "expires": pending.created + CODE_TTL_S, "ttl": CODE_TTL_S} if pending else None,
                 "active": {"id": active.id, "name": active.name, "mode": self._mode,
                            "ends_at": active.ends_at, "extended": active.extended} if active else None,
             }

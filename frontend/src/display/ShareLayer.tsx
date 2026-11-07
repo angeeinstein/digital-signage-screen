@@ -4,7 +4,7 @@ import { api, ApiError } from "../lib/api";
 import { useNow } from "./hooks";
 
 export interface ShareState {
-  pending: { code: string; name: string; expires: number } | null;
+  pending: { code: string; name: string; expires: number; ttl: number } | null;
   active: { id: string; name: string; mode: string; ends_at: number | null; extended: boolean } | null;
 }
 
@@ -152,7 +152,7 @@ export function ShareLayer({ onActiveChange }: { onActiveChange: (active: boolea
           </div>
           <div className="share-code-label">Enter this code on the laptop</div>
           <div className="share-code-digits">{pending.code}</div>
-          <div className="share-code-bar" style={{ transform: `scaleX(${remaining / 60})` }} />
+          <div className="share-code-bar" style={{ transform: `scaleX(${remaining / (pending?.ttl || 30)})` }} />
         </div>
       )}
     </>
