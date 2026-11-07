@@ -14,6 +14,8 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Any, Callable
 
+from .util import redact_secrets
+
 logger = logging.getLogger(__name__)
 
 
@@ -99,7 +101,7 @@ class Poller:
             self._failures = 0
         except Exception as e:  # keep last good data, mark as error
             self._failures += 1
-            logger.warning("%s: fetch failed (%d in a row): %s", self.name, self._failures, e)
+            logger.warning("%s: fetch failed (%d in a row): %s", self.name, self._failures, redact_secrets(str(e)))
             with self._lock:
                 prev = self._snapshot
                 self._snapshot = Snapshot(
@@ -135,5 +137,6 @@ class Poller:
 
 
 def _short_error(e: Exception) -> str:
-    msg = str(e) or e.__class__.__name__
+    # Errors can end up on the public display endpoint; never let an API key through.
+    msg = redact_secrets(str(e)) or e.__class__.__name__
     return msg if len(msg) <= 200 else msg[:197] + "..."

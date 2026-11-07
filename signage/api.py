@@ -22,6 +22,7 @@ from .providers import transport as transport_mod
 from .providers import weather as weather_mod
 from .services import Services
 from .share import is_local_screen
+from .util import redact_secrets
 
 logger = logging.getLogger(__name__)
 bp = Blueprint("api", __name__, url_prefix="/api")
@@ -248,7 +249,7 @@ def test_source(source: str):
             sample = f" (DLH400: {r['origin']['iata']} → {r['destination']['iata']})" if r else ""
             return ok(message="API key works" + sample)
     except Exception as e:
-        return fail(f"Test failed: {e}", 502)
+        return fail(f"Test failed: {redact_secrets(str(e))}", 502)
     return fail("Unknown source", 404)
 
 

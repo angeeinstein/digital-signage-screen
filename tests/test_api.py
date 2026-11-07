@@ -107,3 +107,33 @@ def test_spa_routes_without_build(client, monkeypatch, tmp_path):
     # FRONTEND_DIST is read at request time through the module global
     r = client.get("/")
     assert r.status_code in (200, 503)
+
+
+
+def test_upstream_errors_never_expose_api_keys(client, app):
+    """An OpenWeatherMap failure must not leak the key through /api/display (Codex review)."""
+    import requests
+    from conftest import FakeResponse, FakeSession
+
+    svc = app.extensions["signage.services"]
+    app.extensions["signage.config"].update(
+        {"weather": {"provider": "openweathermap", "openweathermap_api_key": "topsecretkey"}})
+
+    def failing(method, url, **kw):
+        if kw.get("params", {}).get("appid"):
+            return FakeResponse(429)
+        return FakeResponse(200, {})
+
+    svc.session = FakeSession(failing)
+    svc.pollers["weather"].run_once()
+    body = client.get("/api/display").get_data(as_text=True)
+    assert "topsecretkey" not in body and "HTTP 429" in body
+
+    def unreachable(method, url, **kw):
+        key = kw["params"]["appid"]
+        raise requests.ConnectionError(f"Max retries exceeded with url: /data/2.5/weather?lat=1&appid={key}")
+
+    svc.session = FakeSession(unreachable)
+    svc.pollers["weather"].run_once()
+    body = client.get("/api/display").get_data(as_text=True)
+    assert "topsecretkey" not in body and "appid=***" in body

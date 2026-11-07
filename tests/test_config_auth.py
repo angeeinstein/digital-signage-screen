@@ -90,3 +90,25 @@ def test_login_throttle():
     assert t.retry_after("ip") > 0
     t.reset("ip")
     assert t.retry_after("ip") == 0
+
+
+
+def test_non_ascii_username(tmp_path):
+    from signage.auth import CredentialStore
+
+    store = CredentialStore(tmp_path / "auth.json")
+    store.change("admin", "a-long-password", new_username="Jörg")
+    assert store.verify("Jörg", "a-long-password")
+    assert not store.verify("Jorg", "a-long-password")
+    store.change("a-long-password", "another-password")  # change() calls verify() with the stored name
+    assert store.verify("Jörg", "another-password")
+
+
+def test_redact_secrets():
+    from signage.util import redact_secrets
+
+    msg = ("500 Server Error for url: https://api.openweathermap.org/data/2.5/weather?lat=47&lon=15"
+           "&appid=abc123SECRET&units=metric")
+    assert "abc123SECRET" not in redact_secrets(msg) and "appid=***" in redact_secrets(msg)
+    assert redact_secrets("airlabs?api_key=XYZ&flight_icao=DLH1") == "airlabs?api_key=***&flight_icao=DLH1"
+    assert redact_secrets("nothing secret here") == "nothing secret here"

@@ -111,7 +111,9 @@ def fetch_openweathermap(session: requests.Session, lat: float, lon: float, api_
                        timeout=DEFAULT_TIMEOUT)
     if resp.status_code == 401:
         raise RuntimeError("OpenWeatherMap rejected the API key (new keys take up to 2 h to activate)")
-    resp.raise_for_status()
+    if resp.status_code != 200:
+        # Not raise_for_status(): its message contains the URL with the key.
+        raise RuntimeError(f"OpenWeatherMap answered HTTP {resp.status_code}")
     return parse_owm_current(resp.json())
 
 

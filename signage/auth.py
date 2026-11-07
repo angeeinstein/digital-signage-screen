@@ -77,10 +77,11 @@ class CredentialStore:
     def verify(self, username: str, password: str) -> bool:
         creds = self._load()
         stored = creds.get("password_hash", "")
-        user_ok = hmac.compare_digest(str(username), str(creds.get("username", "")))
+        # Compare bytes: compare_digest() rejects non-ASCII str ("Jörg").
+        user_ok = hmac.compare_digest(str(username).encode("utf-8"), str(creds.get("username", "")).encode("utf-8"))
         if _is_legacy_sha256(stored):
             # v1 stored an unsalted SHA-256; accept once and upgrade.
-            pw_ok = hmac.compare_digest(hashlib.sha256(password.encode()).hexdigest(), stored)
+            pw_ok = hmac.compare_digest(hashlib.sha256(password.encode()).hexdigest().encode(), stored.encode("utf-8"))
             if user_ok and pw_ok:
                 with self._lock:
                     creds["password_hash"] = generate_password_hash(password)
@@ -99,6 +100,8 @@ class CredentialStore:
             raise ValueError(f"Password must be at least {MIN_PASSWORD_LENGTH} characters")
         if new == DEFAULT_PASSWORD:
             raise ValueError("Please choose a password other than the default")
+        if new_username is not None and not (0 < len(new_username.strip()) <= 64):
+            raise ValueError("Username must be 1 to 64 characters")
         with self._lock:
             creds = self._load()
             creds["password_hash"] = generate_password_hash(new)

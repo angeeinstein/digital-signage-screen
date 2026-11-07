@@ -80,7 +80,9 @@ def lookup_airlabs(session: requests.Session, callsign: str, api_key: str) -> di
         raise RuntimeError("AirLabs API key rejected")
     if resp.status_code == 429:
         raise RuntimeError("AirLabs rate limit")
-    resp.raise_for_status()
+    if resp.status_code != 200:
+        # Not raise_for_status(): its message contains the URL with the key.
+        raise RuntimeError(f"AirLabs answered HTTP {resp.status_code}")
     body = resp.json()
     if body.get("error"):
         raise RuntimeError(f"AirLabs: {body['error'].get('message', 'error')}")

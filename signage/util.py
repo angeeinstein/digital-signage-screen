@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import math
+import re
 
 import requests
 from requests.adapters import HTTPAdapter
@@ -39,3 +40,12 @@ def bearing_deg(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
     x = math.sin(dl) * math.cos(p2)
     y = math.cos(p1) * math.sin(p2) - math.sin(p1) * math.cos(p2) * math.cos(dl)
     return (math.degrees(math.atan2(x, y)) + 360) % 360
+
+
+# Query parameters that carry API keys (OpenWeatherMap: appid, AirLabs: api_key).
+_SECRET_PARAM_RE = re.compile(r"(?i)\b(appid|api_?key|key|token|access_token|secret)=([^&\s'\")]+)")
+
+
+def redact_secrets(text: str) -> str:
+    """Hide API keys in URLs inside error messages (requests puts the full URL in them)."""
+    return _SECRET_PARAM_RE.sub(lambda m: f"{m.group(1)}=***", text)

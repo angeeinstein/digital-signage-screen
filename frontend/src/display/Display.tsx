@@ -49,7 +49,9 @@ export function Display() {
   const { sources } = state;
   const showMap = config.display.map_enabled;
   const showFlights = sources.flights.status !== "disabled";
-  const showTransport = sources.transport.status !== "disabled" || !!config.transport.stop_id;
+  // Shown while loading a configured stop, but never when switched off in admin.
+  const showTransport =
+    config.transport.enabled && (sources.transport.status !== "disabled" || !!config.transport.stop_id);
   const showLectures = sources.timetable.status !== "disabled";
   // While a laptop is shown, the ticker and slides pause.
   const tickerItems = sharing ? [] : (state.ticker?.items ?? []);
