@@ -509,35 +509,43 @@ UPDATE_LOG_DIR="/var/log/$SERVICE_NAME"
 install_update_service() {
     mkdir -p "$(dirname "$UPDATE_SCRIPT")" "$UPDATE_LOG_DIR"
     chmod 755 "$UPDATE_LOG_DIR"
-    cat > "$UPDATE_SCRIPT" <<'EOF'
+    # This runs during an update started by that very script: write a new file
+    # and rename it over the old one, so the running bash keeps reading the
+    # old file (bash reads scripts while executing them).
+    local tmp="$UPDATE_SCRIPT.new"
+    cat > "$tmp" <<'EOF'
 #!/bin/bash
 # Started by digital-signage-update.service (admin page -> "Update now").
+# Everything is inside main(), so bash has read the whole script before it
+# runs any of it.
 set -uo pipefail
-DIR="@INSTALL_DIR@"
-LOG="@LOG_DIR@/update.log"
-rm -f "@DATA_DIR@/update-request"
-exec >"$LOG" 2>&1
-chmod 644 "$LOG"
-echo "Update started $(date '+%Y-%m-%d %H:%M:%S')"
-git_() { git -c safe.directory="$DIR" -C "$DIR" "$@"; }
-BRANCH="$(git_ rev-parse --abbrev-ref HEAD)"
-SCRIPT="/run/@SERVICE_NAME@-install.sh"
-# Run a copy of the newest installer: the update replaces install.sh while it runs.
-if git_ fetch --quiet origin "$BRANCH" && git_ show "origin/$BRANCH:install.sh" > "$SCRIPT"; then
-    echo "Using the newest installer from branch $BRANCH"
-else
-    echo "Could not fetch the newest installer; using the installed one"
-    cp "$DIR/install.sh" "$SCRIPT"
-fi
-bash "$SCRIPT" --update --yes --branch "$BRANCH" --port "@PORT@"
-rc=$?
-rm -f "$SCRIPT"
-echo "@@RESULT $rc $(date +%s)"
-exit "$rc"
+main() {
+    local DIR="@INSTALL_DIR@" LOG="@LOG_DIR@/update.log" SCRIPT="/run/@SERVICE_NAME@-install.sh" BRANCH rc
+    rm -f "@DATA_DIR@/update-request"
+    exec >"$LOG" 2>&1
+    chmod 644 "$LOG"
+    echo "Update started $(date '+%Y-%m-%d %H:%M:%S')"
+    git_() { git -c safe.directory="$DIR" -C "$DIR" "$@"; }
+    BRANCH="$(git_ rev-parse --abbrev-ref HEAD)"
+    # Run a copy of the newest installer: the update replaces install.sh while it runs.
+    if git_ fetch --quiet origin "$BRANCH" && git_ show "origin/$BRANCH:install.sh" > "$SCRIPT"; then
+        echo "Using the newest installer from branch $BRANCH"
+    else
+        echo "Could not fetch the newest installer; using the installed one"
+        cp "$DIR/install.sh" "$SCRIPT"
+    fi
+    bash "$SCRIPT" --update --yes --branch "$BRANCH" --port "@PORT@"
+    rc=$?
+    rm -f "$SCRIPT"
+    echo "@@RESULT $rc $(date +%s)"
+    exit "$rc"
+}
+main "$@"
 EOF
     sed -i -e "s|@INSTALL_DIR@|$INSTALL_DIR|g" -e "s|@DATA_DIR@|$DATA_DIR|g" -e "s|@LOG_DIR@|$UPDATE_LOG_DIR|g" \
-        -e "s|@SERVICE_NAME@|$SERVICE_NAME|g" -e "s|@PORT@|$PORT|g" "$UPDATE_SCRIPT"
-    chmod 755 "$UPDATE_SCRIPT"
+        -e "s|@SERVICE_NAME@|$SERVICE_NAME|g" -e "s|@PORT@|$PORT|g" "$tmp"
+    chmod 755 "$tmp"
+    mv -f "$tmp" "$UPDATE_SCRIPT"
 
     cat > "/etc/systemd/system/$SERVICE_NAME-update.service" <<EOF
 [Unit]
