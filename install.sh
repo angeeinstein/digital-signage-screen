@@ -543,6 +543,11 @@ main() {
     bash "$SCRIPT" --update --yes --branch "$BRANCH" --port "@PORT@"
     rc=$?
     rm -f "$SCRIPT"
+    # Whatever went wrong, don't leave the dashboard stopped.
+    if ! systemctl is-active --quiet "@SERVICE_NAME@"; then
+        echo "The dashboard was not running after the update; starting it"
+        systemctl start "@SERVICE_NAME@" || true
+    fi
     echo "@@RESULT $rc $(date +%s)"
     exit "$rc"
 }
