@@ -94,7 +94,9 @@ export function UpdateCard() {
   };
 
   const cur = status?.current;
-  const updated = !!status && firstCommit.current !== null && !!cur?.commit && cur.commit !== firstCommit.current;
+  // The checkout changes early in the update; only offer the reload once it has finished.
+  const updated =
+    !active && !!status && firstCommit.current !== null && !!cur?.commit && cur.commit !== firstCommit.current;
   const finished = status?.state === "idle" && status.result && !offline;
 
   return (
