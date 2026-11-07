@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from "react";
+import { memo, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Megaphone, Newspaper, Plane, TriangleAlert } from "lucide-react";
 import type { DisplayState, TickerItem } from "../lib/types";
 
@@ -22,12 +22,6 @@ interface ShownItem extends TickerItem {
 interface Shown {
   sig: string;
   items: ShownItem[];
-}
-
-interface Motion {
-  from: number;
-  to: number;
-  seconds: number;
 }
 
 export function tickerSignature(items: TickerItem[]): string {
@@ -55,12 +49,14 @@ function prepare(items: TickerItem[]): Shown {
  * jumps mid-sentence. If everything fits, it stands still.
  * The parent hides the ticker entirely when there is nothing to show.
  */
-export function Ticker({ items, speed }: { items: TickerItem[]; speed: Speed }) {
+function TickerView({ items, speed }: { items: TickerItem[]; speed: Speed }) {
   const sig = tickerSignature(items);
   const latest = useRef(items);
   latest.current = items;
   const [shown, setShown] = useState<Shown>(() => prepare(items));
-  const [motion, setMotion] = useState<Motion | null>(null);
+  const shownSig = useRef(shown.sig);
+  shownSig.current = shown.sig;
+  const [moving, setMoving] = useState(false);
   const viewport = useRef<HTMLDivElement>(null);
   const track = useRef<HTMLDivElement>(null);
 
@@ -70,43 +66,42 @@ export function Ticker({ items, speed }: { items: TickerItem[]; speed: Speed }) 
     if (!vp || !tr) return;
     const vw = vp.clientWidth;
     const tw = tr.scrollWidth;
-    if (tw <= vw) {
-      setMotion(null);
+    if (tw <= vw || typeof tr.animate !== "function") {
+      setMoving(false);
       return;
     }
     const rem = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
-    setMotion({ from: vw, to: -tw, seconds: (vw + tw) / (SPEED_REM_PER_S[speed] * rem) });
+    const ms = ((vw + tw) / (SPEED_REM_PER_S[speed] * rem)) * 1000;
+    // Only a transform with fixed pixel values: Chromium runs this on the
+    // compositor, so work on the main thread (clock, data updates) can't
+    // make the text stutter.
+    const anim = tr.animate(
+      [{ transform: `translate3d(${vw}px, 0, 0)` }, { transform: `translate3d(${-tw}px, 0, 0)` }],
+      { duration: ms, easing: "linear" },
+    );
+    anim.onfinish = () => {
+      // Swap in new content only between passes, so text never jumps.
+      if (tickerSignature(latest.current) !== shownSig.current) setShown(prepare(latest.current));
+      else anim.play();
+    };
+    setMoving(true);
+    return () => {
+      anim.onfinish = null;
+      anim.cancel();
+    };
   }, [shown.sig, speed]);
 
-  // Standing still: show new content right away. Scrolling: wait for the pass to end.
+  // Standing still: show new content right away.
   useEffect(() => {
-    if (sig !== shown.sig && !motion) setShown(prepare(items));
-  }, [sig, shown.sig, motion, items]);
-
-  const onPassEnd = () => {
-    if (tickerSignature(latest.current) !== shown.sig) setShown(prepare(latest.current));
-  };
+    if (sig !== shown.sig && !moving) setShown(prepare(items));
+  }, [sig, shown.sig, moving, items]);
 
   const urgent = shown.items.some((i) => i.kind === "emergency");
 
   return (
     <div className={`ticker${urgent ? " urgent" : ""}`} role="marquee" aria-live="off">
       <div className="ticker-viewport" ref={viewport}>
-        <div
-          key={shown.sig}
-          ref={track}
-          className={`ticker-track${motion ? " moving" : ""}`}
-          style={
-            motion
-              ? ({
-                  "--from": `${motion.from}px`,
-                  "--to": `${motion.to}px`,
-                  animationDuration: `${motion.seconds}s`,
-                } as CSSProperties)
-              : undefined
-          }
-          onAnimationIteration={onPassEnd}
-        >
+        <div key={shown.sig} ref={track} className={`ticker-track${moving ? " moving" : ""}`}>
           {shown.items.map((item) => {
             const Icon = ICONS[item.kind] ?? Newspaper;
             return (
@@ -122,3 +117,12 @@ export function Ticker({ items, speed }: { items: TickerItem[]; speed: Speed }) 
     </div>
   );
 }
+
+/**
+ * The display re-renders every second (clock) and gets a fresh items array
+ * every poll; skip those re-renders unless the content actually changed.
+ */
+export const Ticker = memo(
+  TickerView,
+  (a, b) => a.speed === b.speed && tickerSignature(a.items) === tickerSignature(b.items),
+);

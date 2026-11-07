@@ -589,8 +589,6 @@ html.is-display {
   flex: 1 1 auto;
   min-width: 0;
   overflow: hidden;
-  -webkit-mask-image: linear-gradient(to right, transparent, #000 1.5rem, #000 calc(100% - 1.5rem), transparent);
-  mask-image: linear-gradient(to right, transparent, #000 1.5rem, #000 calc(100% - 1.5rem), transparent);
 }
 
 .ticker-track {
@@ -607,19 +605,9 @@ html.is-display {
 
 .ticker-track.moving {
   padding: 0;
-  animation-name: ticker-scroll;
-  animation-timing-function: linear;
-  animation-iteration-count: infinite;
   will-change: transform;
-}
-
-@keyframes ticker-scroll {
-  from {
-    transform: translateX(var(--from));
-  }
-  to {
-    transform: translateX(var(--to));
-  }
+  /* Start off-screen; the animation moves it in. */
+  transform: translate3d(100vw, 0, 0);
 }
 
 .ticker-item {
