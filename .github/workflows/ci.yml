@@ -73,6 +73,8 @@ jobs:
       - name: Update from the admin page
         run: |
           curl -fsS -c ck -b ck -H 'X-Requested-With: signage' -H 'Content-Type: application/json'             -d '{"username":"admin","password":"admin"}' http://127.0.0.1:8080/api/auth/login
+          # like on a Pi, where sudo kept the user's HOME: root's git config doesn't allow the checkout
+          sudo git config --global --unset-all safe.directory || true
           curl -fsS -b ck -X POST -H 'X-Requested-With: signage' http://127.0.0.1:8080/api/admin/update/start
           seen=0
           for _ in $(seq 1 300); do

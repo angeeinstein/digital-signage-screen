@@ -44,6 +44,10 @@ RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'; BLUE='\033[0;34m'; NC
 info()    { echo -e "${BLUE}[INFO]${NC} $*"; }
 ok()      { echo -e "${GREEN}[ OK ]${NC} $*"; }
 warn()    { echo -e "${YELLOW}[WARN]${NC} $*"; }
+# git in the checkout. It belongs to the service user and we run as root;
+# allow that here instead of in a global config, which sudo and the update
+# service look for in different home directories.
+repo_git() { git -c safe.directory="$INSTALL_DIR" -C "$INSTALL_DIR" "$@"; }
 die()     { echo -e "${RED}[FAIL]${NC} $*" >&2; exit 1; }
 header()  { echo -e "\n${GREEN}== $* ==${NC}"; }
 
@@ -154,8 +158,8 @@ preserve_legacy_state() {
     if [[ ! -f "$DATA_DIR/auth.json" && ! -f "$DATA_DIR/legacy/admin_auth.json" && -d "$INSTALL_DIR/.git" ]]; then
         # v1's updater ran `git stash -u`, which swallowed admin_auth.json.
         local ref
-        for ref in $(git -C "$INSTALL_DIR" stash list --format='%gd' 2>/dev/null); do
-            if git -C "$INSTALL_DIR" show "${ref}^3:admin_auth.json" > "$DATA_DIR/legacy/admin_auth.json" 2>/dev/null; then
+        for ref in $(repo_git stash list --format='%gd' 2>/dev/null); do
+            if repo_git show "${ref}^3:admin_auth.json" > "$DATA_DIR/legacy/admin_auth.json" 2>/dev/null; then
                 ok "Recovered admin credentials from $ref (lost by an earlier update)"
                 break
             fi
@@ -178,34 +182,35 @@ backup_data() {
 }
 
 fetch_code() {
-    git config --global --add safe.directory "$INSTALL_DIR" 2>/dev/null || true
+    # (repo_git: root may not own the checkout, and root's git config may be
+    # in a different home under sudo than under the update service)
     if is_installed; then
         # Stay on the installed branch and remote unless told otherwise.
         if [[ $BRANCH_SET -eq 0 ]]; then
-            BRANCH="$(git -C "$INSTALL_DIR" rev-parse --abbrev-ref HEAD 2>/dev/null || echo main)"
+            BRANCH="$(repo_git rev-parse --abbrev-ref HEAD 2>/dev/null || echo main)"
         fi
         if [[ -z "${SIGNAGE_REPO:-}" ]]; then
-            REPO_URL="$(git -C "$INSTALL_DIR" remote get-url origin 2>/dev/null || echo "$REPO_URL")"
+            REPO_URL="$(repo_git remote get-url origin 2>/dev/null || echo "$REPO_URL")"
         fi
     fi
     header "Application code ($BRANCH)"
     if is_installed; then
         preserve_legacy_state
         backup_data
-        git -C "$INSTALL_DIR" remote set-url origin "$REPO_URL"
-        git -C "$INSTALL_DIR" fetch --quiet origin "$BRANCH"
+        repo_git remote set-url origin "$REPO_URL"
+        repo_git fetch --quiet origin "$BRANCH"
         # --force: v1 tracked runtime files (dashboard_config.json, content/)
         # that were edited in place. They are already in data/legacy and the
         # backup above, so local changes to tracked files can be discarded.
-        git -C "$INSTALL_DIR" checkout --quiet --force -B "$BRANCH" "origin/$BRANCH"
-        git -C "$INSTALL_DIR" reset --quiet --hard "origin/$BRANCH"
-        ok "Updated to $(git -C "$INSTALL_DIR" log -1 --format='%h %s')"
+        repo_git checkout --quiet --force -B "$BRANCH" "origin/$BRANCH"
+        repo_git reset --quiet --hard "origin/$BRANCH"
+        ok "Updated to $(repo_git log -1 --format='%h %s')"
     else
         if [[ -d "$INSTALL_DIR" ]] && [[ -n "$(ls -A "$INSTALL_DIR")" ]]; then
             die "$INSTALL_DIR exists but is not a git checkout. Move it away first."
         fi
         git clone --quiet --branch "$BRANCH" "$REPO_URL" "$INSTALL_DIR"
-        ok "Cloned $(git -C "$INSTALL_DIR" log -1 --format='%h %s')"
+        ok "Cloned $(repo_git log -1 --format='%h %s')"
     fi
     mkdir -p "$DATA_DIR"
 }
@@ -565,6 +570,7 @@ Description=Digital Signage update (requested from the admin page)
 [Service]
 Type=oneshot
 ExecStart=$UPDATE_SCRIPT
+Environment=HOME=/root
 TimeoutStartSec=30min
 EOF
     # PathExists, and the script deletes the request first: one update per request.
@@ -670,7 +676,7 @@ do_uninstall() {
 menu() {
     echo
     echo "Existing installation found in $INSTALL_DIR"
-    echo "  ($(git -C "$INSTALL_DIR" log -1 --format='%h, %cd' --date=short 2>/dev/null || echo unknown version))"
+    echo "  ($(repo_git log -1 --format='%h, %cd' --date=short 2>/dev/null || echo unknown version))"
     echo
     echo "  1) Update (keeps settings)"
     echo "  2) Repair (reinstall service, permissions, dependencies)"
