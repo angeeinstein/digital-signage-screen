@@ -97,7 +97,16 @@ def validate(data: Any, base: dict[str, Any] | None = None) -> dict[str, Any]:
         raise AnnouncementError("The end date is before the start date")
     if not a["in_ticker"] and not a["as_slide"]:
         raise AnnouncementError("Show it as a slide, in the ticker, or both")
+    if not a["title"] and not a["as_slide"]:
+        raise AnnouncementError("The ticker shows text only: add a title, or show it as a slide")
     return a
+
+
+def problem(a: dict[str, Any]) -> str | None:
+    """Why an otherwise active announcement would not appear anywhere."""
+    if not a.get("title") and not a.get("as_slide"):
+        return "Not shown: the ticker needs a title"
+    return None
 
 
 def is_active(a: dict[str, Any], today: date) -> bool:

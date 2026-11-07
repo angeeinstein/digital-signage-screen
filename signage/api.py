@@ -11,7 +11,7 @@ from zoneinfo import ZoneInfo
 from flask import Blueprint, current_app, jsonify, request, session
 
 from . import __version__
-from .announcements import AnnouncementError, AnnouncementStore, is_active
+from .announcements import AnnouncementError, AnnouncementStore, is_active, problem
 from .auth import CredentialStore, LoginThrottle, client_address, login_required
 from .config import ConfigError, ConfigStore, admin_view, public_view, validate
 from .providers import flights as flights_mod
@@ -320,7 +320,7 @@ def share_stop_all():
 
 def _with_state(a: dict[str, Any]) -> dict[str, Any]:
     today = datetime.now(ZoneInfo(_cfg().get()["location"]["timezone"])).date()
-    return {**a, "active": is_active(a, today)}
+    return {**a, "active": is_active(a, today), "problem": problem(a)}
 
 
 @bp.get("/admin/announcements")

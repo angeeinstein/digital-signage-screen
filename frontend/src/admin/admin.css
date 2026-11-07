@@ -558,6 +558,11 @@ input[readonly] {
   color: var(--muted);
 }
 
+.chip.warn {
+  background: rgba(255, 201, 77, 0.15);
+  color: var(--warn);
+}
+
 .chip.on {
   background: rgba(61, 220, 132, 0.15);
   color: var(--ok);

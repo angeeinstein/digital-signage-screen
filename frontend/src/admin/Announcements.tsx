@@ -88,15 +88,19 @@ export function Announcements() {
       <div className="ann-list">
         {items?.length === 0 && !editing && <div className="muted">No announcements yet.</div>}
         {items?.map((a) => (
-          <div key={a.id} className={`ann${a.active ? "" : " inactive"}`}>
+          <div key={a.id} className={`ann${a.active && !a.problem ? "" : " inactive"}`}>
             <div className="ann-thumb" style={a.image ? { backgroundImage: `url("/media/${a.image}")` } : undefined}>
               {!a.image && <Megaphone className="icon" />}
             </div>
             <div className="ann-body">
-              <strong>{a.title || "(poster only)"}</strong>
+              <strong>{a.title || "(no title, poster only)"}</strong>
               {a.text && <span className="small muted">{a.text}</span>}
               <div className="ann-tags">
-                <span className={`chip${a.active ? " on" : ""}`}>{status(a)}</span>
+                {a.problem ? (
+                  <span className="chip warn">{a.problem}</span>
+                ) : (
+                  <span className={`chip${a.active ? " on" : ""}`}>{status(a)}</span>
+                )}
                 {a.as_slide && <span className="chip">Slide</span>}
                 {a.in_ticker && <span className="chip">Ticker</span>}
                 {(a.start_date || a.end_date) && <span className="chip">{dateRange(a)}</span>}
@@ -183,7 +187,12 @@ function Editor({ id, initial, onCancel, onSaved }: { id: string | null; initial
         <DateInput label="Show until (including)" value={d.end_date} onChange={set("end_date")} help="Empty = until you remove it" />
       </div>
       <Toggle label="Show as full-screen slide" checked={d.as_slide} onChange={set("as_slide")} />
-      <Toggle label="Show in the ticker" checked={d.in_ticker} onChange={set("in_ticker")} help="Needs the ticker to be turned on, and a title." />
+      <Toggle
+        label="Show in the ticker"
+        checked={d.in_ticker}
+        onChange={set("in_ticker")}
+        help={d.title ? "Needs the ticker to be turned on." : "The ticker shows the title, so this needs a title."}
+      />
       <Toggle label="Enabled" checked={d.enabled} onChange={set("enabled")} help="Turn off to pause it without deleting it." />
       {error && <div className="alert error">{error}</div>}
       <div className="row-end">

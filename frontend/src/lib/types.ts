@@ -161,6 +161,8 @@ export interface Announcement {
   as_slide: boolean;
   enabled: boolean;
   active?: boolean;
+  /** Set when the announcement would not appear anywhere. */
+  problem?: string | null;
   created_at?: string;
   updated_at?: string;
 }
