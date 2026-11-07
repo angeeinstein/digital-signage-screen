@@ -33,7 +33,7 @@ import urllib.error
 import urllib.request
 from pathlib import Path
 
-VERSION = "2"
+VERSION = "3"
 FROZEN_AFTER_S = 120  # restart the browser when the page hasn't polled for this long
 STARTUP_GRACE_S = 180  # ... but give a fresh browser this long to load first
 BROWSERS = ("chromium", "chromium-browser", "google-chrome")
@@ -152,9 +152,10 @@ def display_env() -> dict[str, str]:
 def take_screenshot() -> tuple[bytes, str]:
     env = display_env()
     with tempfile.TemporaryDirectory() as tmp:
-        out = Path(tmp) / "screen.jpg"
+        out = Path(tmp) / "screen.png"
         if env.get("WAYLAND_DISPLAY") and shutil.which("grim"):
-            cmd = ["grim", "-t", "jpeg", "-q", "75", "-s", "0.5", str(out)]
+            # PNG: grim on Raspberry Pi OS is built without JPEG support.
+            cmd = ["grim", "-t", "png", "-l", "3", "-s", "0.5", str(out)]
         elif env.get("DISPLAY") and shutil.which("scrot"):
             cmd = ["scrot", "-q", "75", str(out)]
         elif env.get("WAYLAND_DISPLAY"):
@@ -168,7 +169,8 @@ def take_screenshot() -> tuple[bytes, str]:
         if r.returncode != 0 or not out.exists():
             detail = (r.stderr or b"").decode("utf-8", "replace").strip().splitlines()
             raise ScreenshotError(f"{cmd[0]} failed: {detail[-1] if detail else f'exit code {r.returncode}'}")
-        return out.read_bytes(), "image/jpeg"
+        data = out.read_bytes()
+        return data, "image/png" if data.startswith(b"\x89PNG") else "image/jpeg"
 
 
 def reboot() -> None:
