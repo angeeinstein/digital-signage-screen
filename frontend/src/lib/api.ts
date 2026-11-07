@@ -7,7 +7,7 @@ export class ApiError extends Error {
 type Json = Record<string, unknown>;
 
 /** JSON request helper. Adds the header the backend requires on writes (CSRF guard). */
-export async function api<T = Json>(path: string, init: { method?: string; body?: unknown; signal?: AbortSignal } = {}): Promise<T> {
+export async function api<T = Json>(path: string, init: { method?: string; body?: unknown; signal?: AbortSignal; keepalive?: boolean } = {}): Promise<T> {
   const res = await fetch(path, {
     method: init.method ?? "GET",
     headers: {
@@ -18,6 +18,8 @@ export async function api<T = Json>(path: string, init: { method?: string; body?
     body: init.body !== undefined ? JSON.stringify(init.body) : undefined,
     credentials: "same-origin",
     signal: init.signal,
+    // Lets requests sent while a page is closing still reach the server.
+    keepalive: init.keepalive,
   });
   let body: Json | undefined;
   try {

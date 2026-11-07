@@ -53,6 +53,8 @@ export function SharePage() {
   const session = useRef<ShareSession | null>(null);
   const preview = useRef<HTMLVideoElement>(null);
   const stream = useRef<MediaStream | null>(null);
+  const pendingToken = useRef<string | null>(null);
+  pendingToken.current = step.kind === "code" || step.kind === "ready" ? step.token : null;
 
   useEffect(() => {
     document.title = "Share your screen";
@@ -77,7 +79,12 @@ export function SharePage() {
     const warn = (e: BeforeUnloadEvent) => {
       if (session.current) e.preventDefault();
     };
-    const leave = () => session.current?.stop();
+    // Closing the page removes the code from the TV right away (or stops sharing).
+    const leave = () => {
+      if (session.current) session.current.stop();
+      else if (pendingToken.current)
+        api("/api/share/stop", { method: "POST", body: { token: pendingToken.current }, keepalive: true }).catch(() => {});
+    };
     window.addEventListener("beforeunload", warn);
     window.addEventListener("pagehide", leave);
     return () => {

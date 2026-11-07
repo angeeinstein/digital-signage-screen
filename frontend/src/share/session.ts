@@ -257,7 +257,7 @@ export class ShareSession {
   /** Stop sharing on purpose. */
   stop(reason = "You stopped sharing.") {
     if (this.closed) return;
-    api("/api/share/stop", { method: "POST", body: { token: this.token } }).catch(() => {});
+    api("/api/share/stop", { method: "POST", body: { token: this.token }, keepalive: true }).catch(() => {});
     this.finish(reason);
   }
 }
