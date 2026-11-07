@@ -148,6 +148,8 @@ export interface Slide {
   title: string;
   text: string;
   image: string | null;
+  /** "contain": whole image on a blurred backdrop; "cover": fills the slide. */
+  fit?: "contain" | "cover";
 }
 
 export interface Announcement {
@@ -155,6 +157,7 @@ export interface Announcement {
   title: string;
   text: string;
   image: string;
+  image_fit: "contain" | "cover";
   start_date: string;
   end_date: string;
   in_ticker: boolean;

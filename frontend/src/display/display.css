@@ -729,6 +729,41 @@ html.is-display {
   -webkit-line-clamp: 8;
 }
 
+/* "Fill the screen": the image covers the whole area above the ticker. */
+.slide-overlay.cover {
+  inset: 0;
+  border: 0;
+  border-radius: 0;
+  background: #000;
+}
+
+.slide-overlay.cover .slide {
+  padding: 0;
+  gap: 0;
+}
+
+.slide-overlay.cover .slide-image {
+  position: absolute;
+  inset: 0;
+  height: 100%;
+  object-fit: cover;
+  filter: none;
+}
+
+.slide-overlay.cover .slide-caption {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  max-width: none;
+  padding: 3rem 3rem 1.6rem;
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.8), rgba(0, 0, 0, 0.55) 60%, transparent);
+}
+
+.slide-overlay.cover .slide-caption p {
+  color: rgba(255, 255, 255, 0.85);
+}
+
 .slide-progress {
   position: absolute;
   left: 0;

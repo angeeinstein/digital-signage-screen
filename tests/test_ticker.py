@@ -122,6 +122,10 @@ def test_announcement_validation():
     with pytest.raises(AnnouncementError, match="ticker shows text only"):
         validate({"image": "0" * 32 + ".png", "in_ticker": True, "as_slide": False})
     assert validate({"image": "0" * 32 + ".png"})["as_slide"]  # poster without title: slide is fine
+    assert validate({"title": "x"})["image_fit"] == "contain"
+    assert validate({"title": "x", "image_fit": "cover"})["image_fit"] == "cover"
+    with pytest.raises(AnnouncementError):
+        validate({"title": "x", "image_fit": "stretch"})
     assert is_active(a, date(2026, 11, 20)) and not is_active(a, date(2026, 11, 21))
     assert not is_active({**a, "enabled": False}, date(2026, 11, 1))
 

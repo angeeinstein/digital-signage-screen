@@ -21,6 +21,8 @@ logger = logging.getLogger(__name__)
 
 MAX_IMAGE_BYTES = 10 * 1024 * 1024
 MAX_ANNOUNCEMENTS = 50
+# "contain": whole image, blurred copy behind it. "cover": fills the slide, edges may be cropped.
+IMAGE_FITS = ("contain", "cover")
 MEDIA_NAME_RE = re.compile(r"^[0-9a-f]{32}\.(png|jpg|webp|gif)$")
 
 # Detected from the file's first bytes, never from its name. SVG is not
@@ -72,7 +74,7 @@ def validate(data: Any, base: dict[str, Any] | None = None) -> dict[str, Any]:
         raise AnnouncementError("expected an object")
     a = copy.deepcopy(base) if base else {
         "title": "", "text": "", "image": "", "start_date": "", "end_date": "",
-        "in_ticker": True, "as_slide": True, "enabled": True,
+        "in_ticker": True, "as_slide": True, "enabled": True, "image_fit": "contain",
     }
     if "title" in data:
         a["title"] = _text(data["title"], 120, "Title")
@@ -86,6 +88,10 @@ def validate(data: Any, base: dict[str, Any] | None = None) -> dict[str, Any]:
     for key in ("start_date", "end_date"):
         if key in data:
             a[key] = _date(data[key], key.replace("_", " ").capitalize())
+    if "image_fit" in data:
+        if data["image_fit"] not in IMAGE_FITS:
+            raise AnnouncementError("image_fit: must be 'contain' or 'cover'")
+        a["image_fit"] = data["image_fit"]
     for key in ("in_ticker", "as_slide", "enabled"):
         if key in data:
             if not isinstance(data[key], bool):

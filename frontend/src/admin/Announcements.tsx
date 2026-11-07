@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type FormEvent } from "react";
 import { ImageIcon, Megaphone, MonitorPlay, Pencil, Plus, Trash2 } from "lucide-react";
 import { api, ApiError, uploadFile } from "../lib/api";
 import type { Announcement } from "../lib/types";
-import { Card, Field, TextArea, TextInput, Toggle } from "./fields";
+import { Card, Field, Select, TextArea, TextInput, Toggle } from "./fields";
 
 type Draft = Omit<Announcement, "id" | "active" | "created_at" | "updated_at">;
 
@@ -14,6 +14,7 @@ const EMPTY: Draft = {
   end_date: "",
   in_ticker: true,
   as_slide: true,
+  image_fit: "contain",
   enabled: true,
 };
 
@@ -182,6 +183,18 @@ function Editor({ id, initial, onCancel, onSaved }: { id: string | null; initial
         </div>
         <div className="help">PNG, JPEG, WebP or GIF, up to 10 MB. Landscape (16:9) fills the TV best.</div>
       </div>
+      {d.image && (
+        <Select
+          label="Poster layout on the slide"
+          value={d.image_fit}
+          options={[
+            { value: "contain", label: "Fit whole image (blurred background around it)" },
+            { value: "cover", label: "Fill the screen (edges may be cropped)" },
+          ]}
+          onChange={set("image_fit")}
+          help="'Fill' suits 16:9 posters that already contain all the text. A title or text is then shown on a band at the bottom."
+        />
+      )}
       <div className="grid-2">
         <DateInput label="Show from" value={d.start_date} onChange={set("start_date")} help="Empty = right away" />
         <DateInput label="Show until (including)" value={d.end_date} onChange={set("end_date")} help="Empty = until you remove it" />
@@ -217,7 +230,7 @@ function DateInput({ label, value, onChange, help }: { label: string; value: str
 
 function pick(a: Announcement): Draft {
   const { title, text, image, start_date, end_date, in_ticker, as_slide, enabled } = a;
-  return { title, text, image, start_date, end_date, in_ticker, as_slide, enabled };
+  return { title, text, image, start_date, end_date, in_ticker, as_slide, enabled, image_fit: a.image_fit ?? "contain" };
 }
 
 function fmt(d: string): string {

@@ -64,9 +64,10 @@ export const SlideLayer = memo(function SlideLayer({ slides }: { slides: Slides 
 export function SlideOverlay({ current }: { current: CurrentSlide }) {
   const { slide } = current;
   const hasCaption = !!(slide.title || slide.text);
+  const cover = !!slide.image && slide.fit === "cover";
   return (
-    <div className="slide-overlay" key={slide.id} role="region" aria-label="Announcement">
-      {slide.image && <div className="slide-bg" style={{ backgroundImage: `url("${slide.image}")` }} />}
+    <div className={`slide-overlay${cover ? " cover" : ""}`} key={slide.id} role="region" aria-label="Announcement">
+      {slide.image && !cover && <div className="slide-bg" style={{ backgroundImage: `url("${slide.image}")` }} />}
       <div className={`slide${slide.image ? " has-image" : " text-only"}`}>
         {slide.image && <img className="slide-image" src={slide.image} alt={slide.title} />}
         {hasCaption && (

@@ -151,4 +151,5 @@ class Services:
 
 def _slide(a: dict[str, Any]) -> dict[str, Any]:
     return {"id": a["id"], "title": a["title"], "text": a["text"],
-            "image": f"/media/{a['image']}" if a["image"] else None}
+            "image": f"/media/{a['image']}" if a["image"] else None,
+            "fit": a.get("image_fit", "contain")}
