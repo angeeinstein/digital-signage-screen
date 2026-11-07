@@ -13,6 +13,8 @@ interface KioskStatus {
   agent: { version?: string; browser_uptime?: string };
   screenshot_at: number | null;
   screenshot_pending: boolean;
+  screenshot_timeout: boolean;
+  screenshot_error: string | null;
   heartbeat: Source<{ healthy: boolean }>;
 }
 
@@ -124,10 +126,21 @@ export function ScreenCard() {
           <Camera className="icon" /> {status?.screenshot_pending ? "Taking screenshot…" : "Screenshot"}
         </button>
       </div>
-      {notice && (
-        <div className={`alert ${notice.kind}`} role="status" onClick={() => setNotice(null)}>
-          {notice.text}
+      {status?.screenshot_error ? (
+        <div className="alert error" role="status">
+          Screenshot failed: {status.screenshot_error}
         </div>
+      ) : status?.screenshot_timeout ? (
+        <div className="alert error" role="status">
+          No screenshot from the kiosk helper after 20 seconds. It may be outdated: use Restart Pi, or update and reboot.
+        </div>
+      ) : (
+        notice &&
+        !(notice.text.startsWith("Taking") && !status?.screenshot_pending) && (
+          <div className={`alert ${notice.kind}`} role="status" onClick={() => setNotice(null)}>
+            {notice.text}
+          </div>
+        )
       )}
       {shotUrl && (
         <figure className="screen-shot">

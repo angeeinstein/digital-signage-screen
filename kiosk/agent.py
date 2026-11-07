@@ -33,7 +33,7 @@ import urllib.error
 import urllib.request
 from pathlib import Path
 
-VERSION = "1"
+VERSION = "2"
 FROZEN_AFTER_S = 120  # restart the browser when the page hasn't polled for this long
 STARTUP_GRACE_S = 180  # ... but give a fresh browser this long to load first
 BROWSERS = ("chromium", "chromium-browser", "google-chrome")
@@ -87,11 +87,12 @@ class Browser:
         self.started = 0.0
         self.crashes = 0
         self.expected_exit = False
+        self.paused = False  # set while the helper replaces itself
         self._lock = threading.Lock()
 
     def ensure_running(self) -> None:
         with self._lock:
-            if self.proc and self.proc.poll() is None:
+            if self.paused or (self.proc and self.proc.poll() is None):
                 return
             if self.proc is not None and not self.expected_exit:
                 code = self.proc.returncode
@@ -128,22 +129,46 @@ class Browser:
         return time.time() - self.started if self.started else 0.0
 
 
-def take_screenshot() -> tuple[bytes, str] | None:
+class ScreenshotError(Exception):
+    pass
+
+
+def display_env() -> dict[str, str]:
+    """Environment for screenshot tools, with the Wayland display filled in.
+
+    Programs started by the desktop's autostart don't always get
+    WAYLAND_DISPLAY; the socket is in XDG_RUNTIME_DIR, so look for it there.
+    """
+    env = dict(os.environ)
+    runtime = env.get("XDG_RUNTIME_DIR") or f"/run/user/{os.getuid()}"
+    env["XDG_RUNTIME_DIR"] = runtime
+    if not env.get("WAYLAND_DISPLAY"):
+        sockets = sorted(p.name for p in Path(runtime).glob("wayland-*") if not p.name.endswith(".lock"))
+        if sockets:
+            env["WAYLAND_DISPLAY"] = sockets[0]
+    return env
+
+
+def take_screenshot() -> tuple[bytes, str]:
+    env = display_env()
     with tempfile.TemporaryDirectory() as tmp:
         out = Path(tmp) / "screen.jpg"
-        if os.environ.get("WAYLAND_DISPLAY") and shutil.which("grim"):
+        if env.get("WAYLAND_DISPLAY") and shutil.which("grim"):
             cmd = ["grim", "-t", "jpeg", "-q", "75", "-s", "0.5", str(out)]
-        elif shutil.which("scrot"):
+        elif env.get("DISPLAY") and shutil.which("scrot"):
             cmd = ["scrot", "-q", "75", str(out)]
+        elif env.get("WAYLAND_DISPLAY"):
+            raise ScreenshotError("grim is not installed (sudo apt install grim)")
         else:
-            log.error("No screenshot tool (install grim)")
-            return None
+            raise ScreenshotError("No display found for the screenshot")
         try:
-            subprocess.run(cmd, check=True, timeout=20, capture_output=True)
-            return out.read_bytes(), "image/jpeg"
+            r = subprocess.run(cmd, timeout=20, capture_output=True, env=env, check=False)
         except (subprocess.SubprocessError, OSError) as e:
-            log.error("Screenshot failed: %s", e)
-            return None
+            raise ScreenshotError(f"{cmd[0]} could not run: {e}") from None
+        if r.returncode != 0 or not out.exists():
+            detail = (r.stderr or b"").decode("utf-8", "replace").strip().splitlines()
+            raise ScreenshotError(f"{cmd[0]} failed: {detail[-1] if detail else f'exit code {r.returncode}'}")
+        return out.read_bytes(), "image/jpeg"
 
 
 def reboot() -> None:
@@ -184,12 +209,26 @@ class Agent:
         elif command == "reboot":
             reboot()
         elif command == "screenshot":
-            shot = take_screenshot()
-            if shot:
-                self.request("/api/kiosk/agent/screenshot", data=shot[0], content_type=shot[1], timeout=30)
+            try:
+                data, content_type = take_screenshot()
+            except ScreenshotError as e:
+                log.error("Screenshot failed: %s", e)
+                body = json.dumps({"error": str(e)[:300]}).encode("utf-8")
+                self.request("/api/kiosk/agent/screenshot-error", data=body, content_type="application/json")
+                return
+            self.request("/api/kiosk/agent/screenshot", data=data, content_type=content_type, timeout=30)
 
     def loop(self) -> None:
+        own_file = Path(__file__).resolve()
+        version = own_file.stat().st_mtime
         while True:
+            if own_file.exists() and own_file.stat().st_mtime != version:
+                # Updated by the installer: restart with the new code. The new
+                # instance starts its own browser, so close this one first.
+                log.info("Helper was updated; restarting it")
+                self.browser.paused = True  # don't let the supervisor start a browser in between
+                self.browser.restart("helper updated")
+                os.execv(sys.executable, [sys.executable, str(own_file), *sys.argv[1:]])
             try:
                 self.poll_once()
             except (urllib.error.URLError, OSError, ValueError) as e:

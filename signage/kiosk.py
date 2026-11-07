@@ -53,6 +53,8 @@ class KioskHub:
         self.screenshot_type = "image/jpeg"
         self.screenshot_at = 0.0
         self.screenshot_requested = 0.0
+        self.screenshot_error = ""
+        self.screenshot_error_at = 0.0
         self.started = time.time()
 
     # --- display ---------------------------------------------------------------
@@ -95,8 +97,15 @@ class KioskHub:
             self.screenshot_type = content_type if content_type in ("image/png", "image/jpeg") else "image/jpeg"
             self.screenshot_at = time.time()
 
+    def store_screenshot_error(self, message: str) -> None:
+        with self._lock:
+            self.screenshot_error = message[:300]
+            self.screenshot_error_at = time.time()
+
     def status(self) -> dict[str, Any]:
         now = time.time()
+        answered = max(self.screenshot_at, self.screenshot_error_at)
+        failed = self.screenshot_error_at > self.screenshot_at and self.screenshot_error_at >= self.screenshot_requested
         return {
             "display_online": self.display_alive(now),
             "display_seen": self.display_seen or None,
@@ -104,7 +113,10 @@ class KioskHub:
             "agent_seen": self.agent_seen or None,
             "agent": self.agent_info,
             "screenshot_at": self.screenshot_at or None,
-            "screenshot_pending": self.screenshot_requested > self.screenshot_at,
+            "screenshot_pending": self.screenshot_requested > answered,
+            # Asked more than 20 s ago and no answer: the helper is probably stuck or outdated.
+            "screenshot_timeout": self.screenshot_requested > answered and now - self.screenshot_requested > 20,
+            "screenshot_error": self.screenshot_error if failed else None,
             "server_started": self.started,
         }
 

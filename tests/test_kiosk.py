@@ -95,6 +95,12 @@ def test_admin_commands_and_screenshot(admin):
     assert admin.get("/api/admin/kiosk").json["screenshot_pending"] is False
     assert admin.post("/api/admin/kiosk/format-disk", headers=H).status_code == 404
 
+    # A failed screenshot is reported back to the admin page.
+    admin.post("/api/admin/kiosk/screenshot", headers=H)
+    admin.post("/api/kiosk/agent/screenshot-error", headers=H, json={"error": "grim failed: no output"})
+    st = admin.get("/api/admin/kiosk").json
+    assert st["screenshot_error"] == "grim failed: no output" and st["screenshot_pending"] is False
+
 
 def test_admin_kiosk_requires_login(client):
     assert client.get("/api/admin/kiosk").status_code == 401

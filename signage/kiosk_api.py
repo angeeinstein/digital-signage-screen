@@ -52,6 +52,14 @@ def agent_screenshot():
     return jsonify({"ok": True})
 
 
+@bp.post("/api/kiosk/agent/screenshot-error")
+@local_only
+def agent_screenshot_error():
+    data = request.get_json(silent=True) or {}
+    _hub().store_screenshot_error(str(data.get("error", "unknown error")))
+    return jsonify({"ok": True})
+
+
 # --- admin --------------------------------------------------------------------------------------
 
 @bp.get("/api/admin/kiosk")
