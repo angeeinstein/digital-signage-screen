@@ -8,9 +8,9 @@ import os
 from datetime import timedelta
 from pathlib import Path
 
-from flask import Flask, abort, send_from_directory
+from flask import Flask, abort, request, send_from_directory
 
-__version__ = "2.1.0"
+__version__ = "2.2.0"
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 FRONTEND_DIST = BASE_DIR / "frontend" / "dist"
@@ -25,7 +25,10 @@ def create_app(data_dir: str | os.PathLike | None = None, start_pollers: bool | 
     from .auth import CredentialStore, LoginThrottle, csrf_protect, load_or_create_secret_key
     from .config import ConfigStore
     from .providers.routes import RouteResolver
+    from .public_url import PublicUrl
     from .services import Services
+    from .share import ShareHub
+    from .share_api import bp as share_bp
     from .util import make_session
 
     logging.basicConfig(level=os.environ.get("SIGNAGE_LOG_LEVEL", "INFO"),
@@ -59,6 +62,8 @@ def create_app(data_dir: str | os.PathLike | None = None, start_pollers: bool | 
         "signage.throttle": LoginThrottle(),
         "signage.services": services,
         "signage.announcements": announcements,
+        "signage.share": ShareHub(),
+        "signage.public_url": PublicUrl(data / "public_url.json", lambda: config.get()["share"]["public_url"]),
     })
 
     if os.environ.get("SIGNAGE_BEHIND_PROXY") == "1":
@@ -68,7 +73,13 @@ def create_app(data_dir: str | os.PathLike | None = None, start_pollers: bool | 
         app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)  # type: ignore[method-assign]
 
     app.before_request(csrf_protect)
+
+    @app.before_request
+    def remember_public_url():
+        app.extensions["signage.public_url"].observe(request.headers, request.host)
+
     app.register_blueprint(api_bp)
+    app.register_blueprint(share_bp)
 
     @app.after_request
     def security_headers(resp):
@@ -87,6 +98,7 @@ def create_app(data_dir: str | os.PathLike | None = None, start_pollers: bool | 
         return resp
 
     @app.get("/")
+    @app.get("/share")
     @app.get("/admin")
     @app.get("/admin/<path:_sub>")
     @app.get("/login")

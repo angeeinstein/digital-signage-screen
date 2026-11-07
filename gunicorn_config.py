@@ -10,7 +10,7 @@ import os
 bind = os.environ.get("SIGNAGE_BIND", "0.0.0.0:8080")
 workers = 1
 worker_class = "gthread"
-threads = 8
+threads = 16  # screen sharing holds a few long-polling requests open
 timeout = 60
 graceful_timeout = 10
 keepalive = 5

@@ -13,6 +13,8 @@ built for a Raspberry Pi driving a TV. It shows:
 - **News ticker** (optional): a line at the bottom with emergencies (squawk 7700/7600/7500) and
   rare or military aircraft nearby, aviation news headlines and announcements. It only
   appears while there is something to show
+- **Screen sharing** (optional): show a laptop's screen on the TV from the browser, after
+  entering a code shown on the TV. No cable, no app, no switching TV inputs
 
 Everything is configured in a browser at `/admin`.
 
@@ -67,6 +69,39 @@ EOF
 On Debian Trixie–based images the browser binary is called `chromium`. The
 display reconnects on its own if the server restarts, and it reloads itself
 after an update.
+
+### Screen sharing
+
+Turn it on under "Screen sharing" in the admin page. Then:
+
+1. On a laptop, open `https://<public address>/share`. The admin page shows the address.
+2. Click "Show a code on the TV" and type the 4-digit code that appears on the TV.
+3. Choose a window, a browser tab or the whole screen. The TV shows it until you stop,
+   or until someone else enters a new code.
+
+The setup goes through the app (and the Cloudflare tunnel, if you use one). The video
+itself goes directly from the laptop to the Pi over the local network (WebRTC). If no
+direct connection comes up within 6 seconds, it streams through the server instead,
+with 1–2 s delay. That can be turned off in admin.
+
+Only the browser on the Pi itself receives shared screens; visitors of the public
+dashboard never do. Phones can't share: their browsers don't support screen capture.
+
+**Networks that block mDNS:** browsers hide their local IP address behind a
+`….local` name, which can't be resolved there. The installer therefore sets a
+Chromium policy (`/etc/chromium/policies/managed/digital-signage.json`) that lets
+the dashboard on `localhost` use the Pi's real address. Restart the kiosk browser
+(or reboot) after installing or updating.
+
+**Public address:** not configured anywhere. The app remembers the host name of
+the first request that arrives through Cloudflare, and shows it in admin and on
+the TV while someone is sharing. You can override it in admin.
+
+**Cloudflare Access:** protecting `/share` with an Access policy works well on top
+of the code. The application must cover both `/share` and `/api/share/` (the page's
+requests go there), and must *not* cover `/api/share/screen/`; that's only used
+by the Pi itself over localhost, so it never passes through Cloudflare anyway.
+When Access logs someone in, the app uses their e-mail address as the name on the TV.
 
 ## How it works
 
@@ -153,10 +188,12 @@ signage/            Flask backend
   services.py       wires settings → data sources → pollers
   ticker.py         aircraft events (emergencies, rare types) for the ticker
   announcements.py  announcements and uploaded images (data/media/)
+  share.py          screen sharing: codes, signaling, fallback stream
   providers/        one module per external API
 frontend/src/
-  display/          the TV screen (AutoFitList, panels)
+  display/          the TV screen (AutoFitList, panels, ticker, slides, shared screen)
   admin/            settings UI
+  share/            the /share page for laptops
 tests/              pytest suite + recorded API responses
 docs/trias-api.md   notes on the TRIAS API
 ```

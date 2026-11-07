@@ -1,5 +1,25 @@
 # Changelog
 
+## 2.2.0 – 2026-11-07
+
+### Added
+- **Screen sharing** (off by default): a laptop opens `/share`, enters the code the TV
+  shows, and its screen appears on the TV. Video goes directly over the local network
+  (WebRTC), with automatic fallback to streaming through the server, e.g. via the
+  Cloudflare tunnel. Only the Pi's own browser can receive. Admin switch, live status,
+  and "Stop sharing".
+- The public address is detected from requests that come through Cloudflare.
+- Installer sets a Chromium policy so the kiosk can share its real IP address with
+  laptops (needed where mDNS is blocked) and play shared sound.
+
+### Fixed
+- Login throttling behind the Cloudflare tunnel: all visitors appeared to come from
+  localhost, so failed logins from anyone locked everyone out. The visitor's address
+  from Cloudflare is used now.
+
+### Changed
+- gunicorn uses 16 threads (screen sharing keeps a few requests open).
+
 ## 2.1.0 – 2026-11-07
 
 ### Added

@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { WifiOff } from "lucide-react";
 import type { Config } from "../lib/types";
 import { ago } from "../lib/format";
@@ -7,6 +7,7 @@ import { FlightsPanel } from "./FlightsPanel";
 import { Header } from "./Header";
 import { useDisplayState, useNow } from "./hooks";
 import { LecturesPanel } from "./LecturesPanel";
+import { ShareLayer } from "./ShareLayer";
 import { currentSlide, SlideOverlay, usePreloadSlides } from "./Slides";
 import { Ticker } from "./Ticker";
 import "./display.css";
@@ -15,6 +16,8 @@ export function Display() {
   const now = useNow(1000);
   const { state, lastOk, offline } = useDisplayState();
   const config = state?.config;
+  const [sharing, setSharing] = useState(false);
+  const onSharing = useCallback((on: boolean) => setSharing(on), []);
 
   useEffect(() => {
     document.documentElement.style.setProperty("--scale", String(config?.display.font_scale ?? 1));
@@ -36,8 +39,9 @@ export function Display() {
   const showFlights = sources.flights.status !== "disabled";
   const showTransport = sources.transport.status !== "disabled" || !!config.transport.stop_id;
   const showLectures = sources.timetable.status !== "disabled";
-  const tickerItems = state.ticker?.items ?? [];
-  const slide = state.slides ? currentSlide(state.slides, now) : null;
+  // While a laptop is shown, the ticker and slides pause.
+  const tickerItems = sharing ? [] : (state.ticker?.items ?? []);
+  const slide = !sharing && state.slides ? currentSlide(state.slides, now) : null;
 
   // Layout: the dashboard fills the screen; the ticker (only when it has
   // content) takes a strip at the bottom and the dashboard shrinks to fit.
@@ -62,6 +66,7 @@ export function Display() {
         {slide && <SlideOverlay current={slide} />}
       </div>
       {tickerItems.length > 0 && <Ticker items={tickerItems} speed={state.ticker.speed} />}
+      {config.share?.enabled && <ShareLayer onActiveChange={onSharing} now={now} />}
       {offline && (
         <div className="offline-banner" role="status">
           <WifiOff className="icon" aria-hidden /> Connection to server lost · last update {ago(lastOk?.toISOString() ?? null, now)}

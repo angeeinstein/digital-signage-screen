@@ -97,6 +97,11 @@ DEFAULTS: dict[str, Any] = {
         "news_max_items": 5,
         "refresh_seconds": 900,
     },
+    "share": {
+        "enabled": False,
+        "relay_enabled": True,  # fall back to streaming through the server (e.g. Cloudflare)
+        "public_url": "",  # empty = detected from requests that come through Cloudflare
+    },
     "announcements": {
         "slides_enabled": True,
         "slide_every_minutes": 5,
@@ -175,6 +180,13 @@ def _feeds(v: Any) -> str:
     return "\n".join(urls)
 
 
+def _url(v: Any) -> str:
+    v = _str(200)(v).rstrip("/")
+    if v and (not v.startswith(("http://", "https://")) or " " in v):
+        raise ConfigError("must start with https://")
+    return v
+
+
 def _timezone(v: Any) -> str:
     from zoneinfo import ZoneInfo
 
@@ -245,6 +257,11 @@ SCHEMA: dict[str, dict[str, Callable[[Any], Any]]] = {
         "news_max_age_hours": _num(1, 168, integer=True),
         "news_max_items": _num(1, 20, integer=True),
         "refresh_seconds": _num(300, 3600, integer=True),
+    },
+    "share": {
+        "enabled": _bool,
+        "relay_enabled": _bool,
+        "public_url": _url,
     },
     "announcements": {
         "slides_enabled": _bool,

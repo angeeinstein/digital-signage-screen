@@ -12,7 +12,7 @@ from flask import Blueprint, current_app, jsonify, request, session
 
 from . import __version__
 from .announcements import AnnouncementError, AnnouncementStore, is_active
-from .auth import CredentialStore, LoginThrottle, login_required
+from .auth import CredentialStore, LoginThrottle, client_address, login_required
 from .config import ConfigError, ConfigStore, admin_view, public_view, validate
 from .providers import flights as flights_mod
 from .providers import news as news_mod
@@ -114,7 +114,7 @@ def auth_session():
 
 @bp.post("/auth/login")
 def login():
-    key = request.remote_addr or "unknown"
+    key = client_address(request)
     wait = _throttle().retry_after(key)
     if wait:
         return fail(f"Too many failed attempts. Try again in {wait} s.", 429, retry_after=wait)
@@ -149,7 +149,7 @@ def change_password():
         return fail(str(e), 403)
     except ValueError as e:
         return fail(str(e), 400)
-    logger.info("Admin password changed from %s", request.remote_addr)
+    logger.info("Admin password changed from %s", client_address(request))
     return ok()
 
 
@@ -296,6 +296,24 @@ def delete_route(callsign: str):
 def clear_routes():
     removed = _svc().routes.clear(keep_manual=True)
     return ok(removed=removed)
+
+
+# --- admin: screen sharing ---------------------------------------------------------------
+
+@bp.get("/admin/share")
+@login_required
+def share_status():
+    hub = current_app.extensions["signage.share"]
+    pub = current_app.extensions["signage.public_url"]
+    return ok(state=hub.state(), screen_online=hub.screen_online(), public_url=pub.get(),
+              detected_url=pub.detected)
+
+
+@bp.post("/admin/share/stop")
+@login_required
+def share_stop_all():
+    current_app.extensions["signage.share"].stop_all()
+    return ok()
 
 
 # --- admin: announcements ------------------------------------------------------------------

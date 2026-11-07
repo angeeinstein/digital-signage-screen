@@ -319,6 +319,36 @@ summary() {
 # Actions
 ################################################################################
 
+# Chromium policy for the kiosk browser on this machine (only affects pages on
+# localhost, i.e. the dashboard itself):
+# - WebRtcLocalIpsAllowedUrls: screen sharing connects laptops directly to the
+#   Pi. Browsers normally hide their local IP behind an mDNS name, which can't
+#   be resolved on networks that block mDNS; the dashboard may show the real IP.
+# - AutoplayAllowed: shared screens with sound start without a click.
+CHROMIUM_POLICY_DIRS=(/etc/chromium/policies/managed /etc/chromium-browser/policies/managed)
+
+install_browser_policy() {
+    local dir
+    for dir in "${CHROMIUM_POLICY_DIRS[@]}"; do
+        mkdir -p "$dir"
+        cat > "$dir/$SERVICE_NAME.json" <<'EOF'
+{
+  "WebRtcLocalIpsAllowedUrls": ["http://localhost", "http://localhost:*", "http://127.0.0.1", "http://127.0.0.1:*"],
+  "AutoplayAllowed": true
+}
+EOF
+        chmod 644 "$dir/$SERVICE_NAME.json"
+    done
+    ok "Browser policy for screen sharing installed (restart the kiosk browser to apply)"
+}
+
+remove_browser_policy() {
+    local dir
+    for dir in "${CHROMIUM_POLICY_DIRS[@]}"; do
+        rm -f "$dir/$SERVICE_NAME.json"
+    done
+}
+
 do_install() {
     detect_user
     install_packages
@@ -328,6 +358,7 @@ do_install() {
     choose_nginx
     install_service
     setup_nginx
+    install_browser_policy
     set_permissions
     start_and_check
     summary
@@ -343,6 +374,7 @@ do_update() {
     choose_nginx
     install_service
     setup_nginx
+    install_browser_policy
     set_permissions
     start_and_check
     summary
@@ -355,6 +387,7 @@ do_repair() {
     choose_nginx
     install_service
     setup_nginx
+    install_browser_policy
     set_permissions
     start_and_check
     summary
@@ -372,6 +405,7 @@ do_uninstall() {
         rm -f "/etc/nginx/sites-enabled/$SERVICE_NAME" "/etc/nginx/sites-available/$SERVICE_NAME"
         systemctl reload nginx 2>/dev/null || true
     fi
+    remove_browser_policy
     rm -rf "$INSTALL_DIR"
     ok "Uninstalled. A backup of your settings is in /var/backups/digital-signage/"
 }

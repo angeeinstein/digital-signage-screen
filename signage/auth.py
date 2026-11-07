@@ -143,6 +143,21 @@ class LoginThrottle:
             self._failures.pop(key, None)
 
 
+def client_address(req: Any) -> str:
+    """Best guess of the visitor's address, for rate limiting.
+
+    Requests through the Cloudflare tunnel reach us from localhost (cloudflared
+    runs on the Pi), so without this every internet visitor would share one
+    address. Cloudflare's header is only trusted when the request really
+    arrived from this machine.
+    """
+    addr = req.remote_addr or "unknown"
+    cf = req.headers.get("Cf-Connecting-Ip", "").strip()
+    if cf and addr in ("127.0.0.1", "::1"):
+        return cf[:64]
+    return addr
+
+
 def login_required(fn: Callable) -> Callable:
     @wraps(fn)
     def wrapper(*args, **kwargs):

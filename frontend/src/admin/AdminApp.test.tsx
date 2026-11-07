@@ -23,6 +23,7 @@ const config: Config = {
     refresh_seconds: 900,
   },
   announcements: { slides_enabled: true, slide_every_minutes: 5, slide_seconds: 15 },
+  share: { enabled: false, relay_enabled: true, public_url: "" },
 };
 
 function mockFetch(loggedIn: boolean) {
@@ -39,6 +40,8 @@ function mockFetch(loggedIn: boolean) {
       return json({ ok: true, config: body.config, revision: 4 });
     }
     if (url === "/api/admin/status") return json({ ok: true, sources: {} });
+    if (url === "/api/admin/share")
+      return json({ ok: true, state: { pending: null, active: null }, screen_online: false, public_url: "", detected_url: "" });
     if (url === "/api/admin/announcements") return json({ ok: true, announcements: [] });
     return json({ ok: false, error: "unexpected" }, 404);
   });
