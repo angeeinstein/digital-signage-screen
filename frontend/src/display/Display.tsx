@@ -1,19 +1,31 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useState } from "react";
 import { WifiOff } from "lucide-react";
 import type { Config } from "../lib/types";
 import { ago } from "../lib/format";
+import { sameProps } from "../lib/sameProps";
 import { DeparturesPanel } from "./DeparturesPanel";
 import { FlightsPanel } from "./FlightsPanel";
 import { Header } from "./Header";
 import { useDisplayState, useNow } from "./hooks";
 import { LecturesPanel } from "./LecturesPanel";
 import { ShareLayer } from "./ShareLayer";
-import { currentSlide, SlideOverlay, usePreloadSlides } from "./Slides";
+import { SlideLayer, usePreloadSlides } from "./Slides";
 import { Ticker } from "./Ticker";
 import "./display.css";
 
+// Each panel re-renders only when its own data changed (or the 10-second
+// clock moved). A full re-render on every poll was enough work to make the
+// ticker stutter on the Pi.
+const Flights = memo(FlightsPanel, sameProps);
+const Departures = memo(DeparturesPanel, sameProps);
+const Lectures = memo(LecturesPanel, sameProps);
+const HeaderPanel = memo(Header, sameProps);
+
 export function Display() {
-  const now = useNow(1000);
+  // Countdowns ("15 min") and "updated x ago" only need a coarse clock.
+  // Re-rendering the whole dashboard every second made the ticker stutter
+  // on the Pi; the clock and the slides have their own 1-second timers.
+  const now = useNow(10_000);
   const { state, lastOk, offline } = useDisplayState();
   const config = state?.config;
   const [sharing, setSharing] = useState(false);
@@ -41,7 +53,6 @@ export function Display() {
   const showLectures = sources.timetable.status !== "disabled";
   // While a laptop is shown, the ticker and slides pause.
   const tickerItems = sharing ? [] : (state.ticker?.items ?? []);
-  const slide = !sharing && state.slides ? currentSlide(state.slides, now) : null;
 
   // Layout: the dashboard fills the screen; the ticker (only when it has
   // content) takes a strip at the bottom and the dashboard shrinks to fit.
@@ -50,23 +61,23 @@ export function Display() {
   return (
     <div className={`screen${tickerItems.length ? " has-ticker" : ""}`}>
       <div className="screen-main">
-        <div className={`display${showMap ? "" : " no-map"}${showFlights ? "" : " no-flights"}`} aria-hidden={!!slide}>
+        <div className={`display${showMap ? "" : " no-map"}${showFlights ? "" : " no-flights"}`}>
           <div className="col-left">
             {showMap && <MapPanel config={config} />}
-            {showFlights && <FlightsPanel source={sources.flights} radiusKm={config.flights.radius_km} now={now} />}
+            {showFlights && <Flights source={sources.flights} radiusKm={config.flights.radius_km} now={now} />}
           </div>
           <div className="col-right">
-            <Header now={now} timeZone={tz} locationName={config.location.name} weather={sources.weather} />
-            {showTransport && <DeparturesPanel source={sources.transport} timeZone={tz} now={now} />}
+            <HeaderPanel now={now} timeZone={tz} locationName={config.location.name} weather={sources.weather} />
+            {showTransport && <Departures source={sources.transport} timeZone={tz} now={now} />}
             {showLectures && (
-              <LecturesPanel source={sources.timetable} timeZone={tz} windowHours={config.timetable.time_window_hours} now={now} />
+              <Lectures source={sources.timetable} timeZone={tz} windowHours={config.timetable.time_window_hours} now={now} />
             )}
           </div>
         </div>
-        {slide && <SlideOverlay current={slide} />}
+        {!sharing && state.slides && <SlideLayer slides={state.slides} />}
       </div>
       {tickerItems.length > 0 && <Ticker items={tickerItems} speed={state.ticker.speed} />}
-      {config.share?.enabled && <ShareLayer onActiveChange={onSharing} now={now} />}
+      {config.share?.enabled && <ShareLayer onActiveChange={onSharing} />}
       {offline && (
         <div className="offline-banner" role="status">
           <WifiOff className="icon" aria-hidden /> Connection to server lost · last update {ago(lastOk?.toISOString() ?? null, now)}
@@ -76,7 +87,7 @@ export function Display() {
   );
 }
 
-function MapPanel({ config }: { config: Config }) {
+const MapPanel = memo(function MapPanel({ config }: { config: Config }) {
   const { lat, lon } = config.location;
   const zoom = config.display.map_zoom;
   // Only rebuild the iframe URL when location/zoom actually change; otherwise
@@ -92,4 +103,4 @@ function MapPanel({ config }: { config: Config }) {
       <iframe src={src} title="Live air traffic map" referrerPolicy="no-referrer" loading="eager" />
     </section>
   );
-}
+}, sameProps);

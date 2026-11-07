@@ -24,6 +24,16 @@ interface Shown {
   items: ShownItem[];
 }
 
+/**
+ * Round the speed to a whole number of device pixels per frame (at 60 Hz).
+ * At e.g. 2.3 px per frame, text snaps alternately 2 and 3 pixels, which
+ * looks like small irregular jerks; whole pixels per frame scroll evenly.
+ */
+export function pixelsPerSecond(cssPxPerSecond: number, dpr = window.devicePixelRatio || 1, hz = 60): number {
+  const devicePerFrame = Math.max(1, Math.round((cssPxPerSecond * dpr) / hz));
+  return (devicePerFrame * hz) / dpr;
+}
+
 export function tickerSignature(items: TickerItem[]): string {
   return items.map((i) => `${i.id}|${i.text}`).join("\n");
 }
@@ -71,7 +81,7 @@ function TickerView({ items, speed }: { items: TickerItem[]; speed: Speed }) {
       return;
     }
     const rem = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
-    const ms = ((vw + tw) / (SPEED_REM_PER_S[speed] * rem)) * 1000;
+    const ms = ((vw + tw) / pixelsPerSecond(SPEED_REM_PER_S[speed] * rem)) * 1000;
     // Only a transform with fixed pixel values: Chromium runs this on the
     // compositor, so work on the main thread (clock, data updates) can't
     // make the text stutter.

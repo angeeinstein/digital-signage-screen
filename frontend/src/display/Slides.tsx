@@ -1,4 +1,5 @@
-import { useEffect } from "react";
+import { memo, useEffect } from "react";
+import { useNow } from "./hooks";
 import type { DisplayState, Slide } from "../lib/types";
 
 type Slides = DisplayState["slides"];
@@ -52,6 +53,13 @@ export function usePreloadSlides(slides: Slide[]) {
     }
   }, [key]);
 }
+
+/** Checks the schedule every second; renders nothing between slides. */
+export const SlideLayer = memo(function SlideLayer({ slides }: { slides: Slides }) {
+  const now = useNow(1000);
+  const current = currentSlide(slides, now);
+  return current ? <SlideOverlay current={current} /> : null;
+}, (a, b) => JSON.stringify(a.slides) === JSON.stringify(b.slides));
 
 export function SlideOverlay({ current }: { current: CurrentSlide }) {
   const { slide } = current;

@@ -29,7 +29,8 @@ const POLL_MS = 5000;
  */
 export function useDisplayState(): DisplayConnection {
   const [state, setState] = useState<DisplayState | null>(null);
-  const [lastOk, setLastOk] = useState<Date | null>(null);
+  const lastOk = useRef<Date | null>(null);
+  const lastKey = useRef("");
   const [failures, setFailures] = useState(0);
   const firstVersion = useRef<string | null>(null);
 
@@ -48,8 +49,14 @@ export function useDisplayState(): DisplayConnection {
           window.location.reload();
           return;
         }
-        setState(s);
-        setLastOk(new Date());
+        // Most polls return the same data; re-rendering the whole dashboard
+        // for nothing costs the Pi enough to make the ticker stutter.
+        const key = JSON.stringify({ ...s, server_time: "" });
+        if (key !== lastKey.current) {
+          lastKey.current = key;
+          setState(s);
+        }
+        lastOk.current = new Date();
         setFailures(0);
       } catch {
         if (!cancelled) setFailures((f) => f + 1);
@@ -65,5 +72,5 @@ export function useDisplayState(): DisplayConnection {
     };
   }, []);
 
-  return { state, lastOk, offline: failures >= 3 };
+  return { state, lastOk: lastOk.current, offline: failures >= 3 };
 }

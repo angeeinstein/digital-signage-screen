@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { MonitorUp } from "lucide-react";
 import { api, ApiError } from "../lib/api";
+import { useNow } from "./hooks";
 
 export interface ShareState {
   pending: { code: string; name: string; expires: number } | null;
@@ -27,8 +28,10 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
  * on top of everything while sharing. Video arrives either directly over
  * WebRTC or, as fallback, as recorded chunks through the server (MSE).
  */
-export function ShareLayer({ onActiveChange, now }: { onActiveChange: (active: boolean) => void; now: Date }) {
+export function ShareLayer({ onActiveChange }: { onActiveChange: (active: boolean) => void }) {
   const [state, setState] = useState<ShareState | null>(null);
+  // Ticks every second only while a code or a countdown is on screen.
+  const now = useNow(state?.pending || state?.active?.ends_at ? 1000 : 60_000);
   const [publicUrl, setPublicUrl] = useState("");
   const [hasVideo, setHasVideo] = useState(false);
   const video = useRef<HTMLVideoElement>(null);

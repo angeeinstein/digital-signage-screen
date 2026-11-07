@@ -1,6 +1,6 @@
 import { render, screen } from "@testing-library/react";
 import { currentSlide } from "./Slides";
-import { Ticker } from "./Ticker";
+import { pixelsPerSecond, Ticker } from "./Ticker";
 import type { DisplayState, Slide, TickerItem } from "../lib/types";
 
 const slide = (id: string): Slide => ({ id, title: `Slide ${id}`, text: "", image: null });
@@ -67,5 +67,16 @@ describe("Ticker", () => {
     const { rerender } = render(<Ticker items={[{ id: "1", kind: "announcement", text: "Old" }]} speed="slow" />);
     rerender(<Ticker items={[{ id: "1", kind: "announcement", text: "New" }]} speed="slow" />);
     expect(screen.getByText("New")).toBeTruthy();
+  });
+});
+
+describe("pixelsPerSecond", () => {
+  it("rounds to whole device pixels per 60 Hz frame", () => {
+    // 136 px/s = 2.27 px per frame -> 2 px per frame
+    expect(pixelsPerSecond(136, 1)).toBe(120);
+    expect(pixelsPerSecond(200, 1)).toBe(180);
+    // 1.5x scaling: 136 css px/s = 3.4 device px per frame -> 3 device px = 2 css px
+    expect(pixelsPerSecond(136, 1.5)).toBe(120);
+    expect(pixelsPerSecond(5, 1)).toBe(60); // never slower than 1 px per frame
   });
 });

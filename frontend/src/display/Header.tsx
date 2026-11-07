@@ -20,6 +20,7 @@ import {
 import type { Source, Weather } from "../lib/types";
 import { formatDate, formatTime, num, windText } from "../lib/format";
 import { StatusDot } from "./Panel";
+import { useNow } from "./hooks";
 
 const ICONS: Record<Weather["icon"], [LucideIcon, LucideIcon]> = {
   clear: [Sun, Moon],
@@ -43,12 +44,20 @@ interface Props {
 export function Header({ now, timeZone, locationName, weather }: Props) {
   return (
     <section className="panel header-panel">
-      <div className="clock">
-        <div className="clock-time">{formatTime(now, timeZone, true)}</div>
-        <div className="clock-date">{formatDate(now, timeZone)}</div>
-      </div>
+      <Clock timeZone={timeZone} />
       {weather.status !== "disabled" && <WeatherBlock weather={weather} now={now} locationName={locationName} />}
     </section>
+  );
+}
+
+/** The only part of the dashboard that re-renders every second. */
+function Clock({ timeZone }: { timeZone: string }) {
+  const now = useNow(1000);
+  return (
+    <div className="clock">
+      <div className="clock-time">{formatTime(now, timeZone, true)}</div>
+      <div className="clock-date">{formatDate(now, timeZone)}</div>
+    </div>
   );
 }
 

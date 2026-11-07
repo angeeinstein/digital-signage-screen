@@ -21,6 +21,7 @@
 - gunicorn uses 16 threads (screen sharing keeps a few requests open).
 
 ### Fixed
+- The ticker stuttered on the Pi: the whole dashboard re-rendered every second and on every poll, and the scroll speed wasn't a whole number of pixels per frame. Now only the clock ticks every second, panels re-render only when their data changes, and the speed is rounded to whole pixels per frame.
 - Login throttling behind the Cloudflare tunnel: all visitors appeared to come from
   localhost, so failed logins from anyone locked everyone out. The visitor's address
   from Cloudflare is used now.
