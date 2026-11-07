@@ -41,6 +41,8 @@ SCREEN_TIMEOUT_S = 45
 POLL_TIMEOUT_S = 20
 RELAY_KEEP_CHUNKS = 240  # ~60 s at 250 ms per chunk
 REQUESTS_PER_MINUTE = 4  # per client address
+EXTENSION_FACTOR = 0.5  # one extension adds half of the time limit
+WARNING_S = 5 * 60  # the laptop offers the extension this long before the end
 
 
 class ShareError(Exception):
@@ -158,7 +160,19 @@ class Sender:
     last_seen: float
     attempts: int = 0
     verified: bool = False
+    limit_s: float = 0  # time limit when sharing started; 0 = none
+    ends_at: float | None = None
+    extended: bool = False
     mailbox: Mailbox = field(default_factory=Mailbox)
+
+    def deadline_message(self, now: float) -> dict[str, Any]:
+        return {
+            "type": "deadline",
+            "remaining": None if self.ends_at is None else max(0.0, self.ends_at - now),
+            "can_extend": self.ends_at is not None and not self.extended,
+            "extend_minutes": round(self.limit_s * EXTENSION_FACTOR / 60),
+            "warning_s": WARNING_S,
+        }
 
 
 class ShareHub:
@@ -181,6 +195,8 @@ class ShareHub:
             expired = not s.verified and now - s.created > CODE_TTL_S
             if stale or (expired and token != self._active):
                 self._drop(token, "timeout")
+            elif s.ends_at is not None and now >= s.ends_at:
+                self._drop(token, "time limit")
 
     def _drop(self, token: str, reason: str) -> None:
         s = self._senders.pop(token, None)
@@ -205,7 +221,8 @@ class ShareHub:
             return {
                 "pending": {"code": pending.code, "name": pending.name,
                             "expires": pending.created + CODE_TTL_S} if pending else None,
-                "active": {"id": active.id, "name": active.name, "mode": self._mode} if active else None,
+                "active": {"id": active.id, "name": active.name, "mode": self._mode,
+                           "ends_at": active.ends_at, "extended": active.extended} if active else None,
             }
 
     def _publish_state(self) -> None:
@@ -246,7 +263,7 @@ class ShareHub:
             self._publish_state()
             return {"token": token, "expires_in": CODE_TTL_S}
 
-    def verify(self, token: str, code: str, now: float | None = None) -> dict[str, Any]:
+    def verify(self, token: str, code: str, now: float | None = None, limit_s: float = 0) -> dict[str, Any]:
         now = now or time.time()
         with self._lock:
             self._cleanup(now)
@@ -261,6 +278,9 @@ class ShareHub:
                     raise ShareError("Wrong code too many times. Start again.", 403)
                 raise ShareError(f"Wrong code ({left} {'try' if left == 1 else 'tries'} left)", 403)
             s.verified = True
+            s.limit_s = max(0.0, limit_s)
+            s.ends_at = now + s.limit_s if s.limit_s else None
+            s.mailbox.put(s.deadline_message(now))
             if self._pending == token:
                 self._pending = None
             if self._active and self._active != token:
@@ -273,6 +293,25 @@ class ShareHub:
             self._publish_state()
             logger.info("Screen sharing started by %s", s.name)
             return {"id": s.id}
+
+    def extend(self, token: str, now: float | None = None) -> dict[str, Any]:
+        """Extend the time limit once, by half of the original limit."""
+        now = now or time.time()
+        with self._lock:
+            s = self._sender(token, now)
+            if token != self._active:
+                raise ShareError("Someone else is sharing now", 409)
+            if s.ends_at is None:
+                raise ShareError("There is no time limit", 409)
+            if s.extended:
+                raise ShareError("Sharing can only be extended once", 409)
+            s.ends_at += s.limit_s * EXTENSION_FACTOR
+            s.extended = True
+            msg = s.deadline_message(now)
+            s.mailbox.put(msg)
+            self._publish_state()
+            logger.info("Screen sharing by %s extended", s.name)
+            return msg
 
     def sender_signal(self, token: str, msg: dict[str, Any], now: float | None = None) -> None:
         now = now or time.time()

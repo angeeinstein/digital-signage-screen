@@ -797,6 +797,11 @@ html.is-display {
   opacity: 0.75;
 }
 
+.share-ending {
+  color: var(--warn);
+  font-weight: 650;
+}
+
 .share-code {
   position: fixed;
   z-index: 30;

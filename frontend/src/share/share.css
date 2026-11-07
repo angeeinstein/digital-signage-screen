@@ -150,6 +150,19 @@ html.is-share body {
   color: var(--ok);
 }
 
+.share-warning {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.6rem;
+  width: 100%;
+  padding: 0.8rem 1rem;
+  border: 1px solid var(--warn);
+  border-radius: 0.45rem;
+  background: rgba(255, 201, 77, 0.1);
+  color: var(--warn);
+}
+
 .spin {
   animation: spin 1s linear infinite;
 }

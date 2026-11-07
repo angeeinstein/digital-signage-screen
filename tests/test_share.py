@@ -98,7 +98,7 @@ def test_screen_messages_only_reach_active_sender():
     hub.screen_signal("someone-else", {"type": "answer", "sdp": "y"})
     hub.screen_signal(sid, {"type": "answer", "sdp": "y"})
     events, _ = hub._senders[r["token"]].mailbox.get(0, 0)
-    assert [e["type"] for e in events] == ["answer"]
+    assert [e["type"] for e in events] == ["deadline", "answer"]
     with pytest.raises(ShareError):
         hub.screen_signal(sid, {"type": "evil"})
 
@@ -221,3 +221,56 @@ def test_login_throttle_uses_cloudflare_client(client):
     other = client.post("/api/auth/login", headers={**H, "Cf-Connecting-Ip": "7.7.7.7"},
                         json={"username": "admin", "password": "admin"})
     assert other.status_code == 200
+
+
+# --- time limit -----------------------------------------------------------------------
+
+def start_sharing(hub, now=1000, limit_s=3600):
+    r = hub.request("Anna", "1.1.1.1", now=now)
+    hub.verify(r["token"], hub.state()["pending"]["code"], now=now, limit_s=limit_s)
+    return r["token"]
+
+
+def test_sharing_ends_at_time_limit():
+    hub = online_hub()
+    token = start_sharing(hub, now=1000, limit_s=3600)
+    assert hub.state()["active"]["ends_at"] == 4600
+    msg = hub._senders[token].mailbox.get(0, 0)[0][0]
+    assert msg == {"type": "deadline", "remaining": 3600, "can_extend": True, "extend_minutes": 30, "warning_s": 300}
+    # Keep the sender "seen" so only the limit can end it.
+    hub._senders[token].last_seen = 4600
+    hub._cleanup(4599)
+    assert hub.state()["active"] is not None
+    hub._cleanup(4600)
+    assert hub.state()["active"] is None
+
+
+def test_extend_only_once_by_half():
+    hub = online_hub()
+    token = start_sharing(hub, now=1000, limit_s=3600)
+    msg = hub.extend(token, now=4400)
+    assert hub.state()["active"]["ends_at"] == 4600 + 1800
+    assert msg["can_extend"] is False and msg["remaining"] == 2000
+    with pytest.raises(ShareError, match="only be extended once"):
+        hub.extend(token, now=6000)
+
+
+def test_no_limit():
+    hub = online_hub()
+    token = start_sharing(hub, limit_s=0)
+    assert hub.state()["active"]["ends_at"] is None
+    with pytest.raises(ShareError):
+        hub.extend(token)
+
+
+def test_extend_http(admin):
+    enable(admin, max_minutes=60)
+    admin.get("/api/share/screen/events?since=999999")
+    token = admin.post("/api/share/request", headers=H, json={}).json["token"]
+    code = admin.get("/api/admin/share").json["state"]["pending"]["code"]
+    admin.post("/api/share/verify", headers=H, json={"token": token, "code": code})
+    r = admin.post("/api/share/extend", headers=H, json={"token": token})
+    assert r.status_code == 200 and r.json["can_extend"] is False
+    assert admin.post("/api/share/extend", headers=H, json={"token": token}).status_code == 409
+    assert admin.put("/api/admin/config", headers=H,
+                     json={"config": {"share": {"max_minutes": 9999}}}).status_code == 422

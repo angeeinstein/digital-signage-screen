@@ -11,14 +11,19 @@
 - The public address is detected from requests that come through Cloudflare.
 - Installer sets a Chromium policy so the kiosk can share its real IP address with
   laptops (needed where mDNS is blocked) and play shared sound.
+- Time limit for screen sharing (default 2 hours, 0 = none). 5 minutes before the end
+  the laptop can extend once, by half the limit; the TV shows a countdown. A forgotten
+  laptop can no longer block the TV all day.
+
+### Changed
+- The admin page is grouped into sections with a side menu (a row of tabs on phones).
+  Sections with unsaved changes are marked.
+- gunicorn uses 16 threads (screen sharing keeps a few requests open).
 
 ### Fixed
 - Login throttling behind the Cloudflare tunnel: all visitors appeared to come from
   localhost, so failed logins from anyone locked everyone out. The visitor's address
   from Cloudflare is used now.
-
-### Changed
-- gunicorn uses 16 threads (screen sharing keeps a few requests open).
 
 ## 2.1.0 – 2026-11-07
 

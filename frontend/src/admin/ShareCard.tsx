@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { MonitorUp } from "lucide-react";
 import { api } from "../lib/api";
 import type { Config } from "../lib/types";
-import { Card, TextInput, Toggle } from "./fields";
+import { Card, NumberInput, TextInput, Toggle } from "./fields";
 
 interface ShareStatus {
   state: { pending: { name: string } | null; active: { name: string; mode: string } | null };
@@ -66,6 +66,20 @@ export function ShareCard({ draft, setDraft }: { draft: Config; setDraft: (c: Co
             placeholder={status?.detected_url || "https://…"}
             onChange={set("public_url")}
             help="Only needed if the detected address is wrong. Shown on the TV while someone is sharing."
+          />
+          <NumberInput
+            label="End sharing automatically after"
+            unit="minutes"
+            value={s.max_minutes}
+            min={0}
+            max={480}
+            step={15}
+            onChange={set("max_minutes")}
+            help={
+              s.max_minutes > 0
+                ? `5 minutes before the end, the laptop can extend once by ${Math.round(s.max_minutes / 2)} minutes. Prevents a forgotten laptop from blocking the TV. 0 = no limit.`
+                : "No limit: sharing runs until it is stopped or the laptop disconnects."
+            }
           />
           <Toggle
             label="Fall back to streaming through the internet"

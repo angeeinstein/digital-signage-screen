@@ -90,8 +90,15 @@ def access_email(req: Any) -> str:
 @enabled_only
 def share_verify():
     d = _body()
-    r = _hub().verify(str(d.get("token", "")), str(d.get("code", "")))
+    r = _hub().verify(str(d.get("token", "")), str(d.get("code", "")), limit_s=_settings()["max_minutes"] * 60)
     return jsonify({"ok": True, **r, "relay": _settings()["relay_enabled"]})
+
+
+@bp.post("/extend")
+@enabled_only
+def share_extend():
+    msg = _hub().extend(str(_body().get("token", "")))
+    return jsonify({"ok": True, **msg})
 
 
 @bp.post("/signal")

@@ -1,6 +1,14 @@
 import { api, ApiError } from "../lib/api";
 
 export type Mode = "connecting" | "direct" | "relay";
+
+export interface Deadline {
+  /** Local time (ms) when sharing ends, or null without a limit. */
+  endsAt: number | null;
+  canExtend: boolean;
+  extendMinutes: number;
+  warningMs: number;
+}
 type Msg = { type: string; [k: string]: unknown };
 
 const DIRECT_TIMEOUT_MS = 6000;
@@ -43,6 +51,7 @@ export class ShareSession {
     private relayAllowed: boolean,
     private onMode: (m: Mode) => void,
     private onEnd: (reason: string) => void,
+    private onDeadline: (d: Deadline) => void,
   ) {
     const track = stream.getVideoTracks()[0];
     if (track && "contentHint" in track) track.contentHint = "detail"; // sharp text over smooth motion
@@ -93,13 +102,38 @@ export class ShareSession {
       case "relay-restart": // the TV fell behind
         if (this.mode === "relay") this.startRelay();
         break;
+      case "deadline":
+        this.applyDeadline(ev);
+        break;
       case "replaced":
         this.finish(`${String(ev.by ?? "Someone else")} is sharing now.`);
         break;
       case "ended":
-        this.finish(ev.reason === "stopped by admin" ? "Sharing was stopped from the admin page." : "The share session has ended.");
+        this.finish(
+          ev.reason === "stopped by admin"
+            ? "Sharing was stopped from the admin page."
+            : ev.reason === "time limit"
+              ? "Sharing ended because the time limit was reached."
+              : "The share session has ended.",
+        );
         break;
     }
+  }
+
+  private applyDeadline(ev: Msg) {
+    const remaining = typeof ev.remaining === "number" ? ev.remaining : null;
+    this.onDeadline({
+      endsAt: remaining === null ? null : Date.now() + remaining * 1000,
+      canExtend: !!ev.can_extend,
+      extendMinutes: Number(ev.extend_minutes ?? 0),
+      warningMs: Number(ev.warning_s ?? 300) * 1000,
+    });
+  }
+
+  /** Use the one-time extension of the time limit. */
+  async extend() {
+    const r = await api<Msg>("/api/share/extend", { method: "POST", body: { token: this.token } });
+    this.applyDeadline(r);
   }
 
   /** (Re)connect: direct first, relay as fallback. */

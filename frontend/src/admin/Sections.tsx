@@ -7,13 +7,16 @@ import { SlidesCard, TickerCard } from "./TickerSections";
 
 type SetDraft = (fn: (c: Config) => Config) => void;
 
+export type SettingsGroup = "location" | "weather" | "flights" | "transport" | "lectures" | "ticker" | "slides";
+
 interface Props {
   draft: Config;
   setDraft: (c: Config) => void;
+  group: SettingsGroup;
 }
 
-/** All settings cards. Each edit produces a new draft; nothing is saved until "Save". */
-export function Sections({ draft, setDraft }: Props) {
+/** Settings cards of one group. Each edit produces a new draft; nothing is saved until "Save". */
+export function Sections({ draft, setDraft, group }: Props) {
   const update: SetDraft = (fn) => setDraft(fn(draft));
   const set =
     <S extends keyof Config, K extends keyof Config[S]>(section: S, key: K) =>
@@ -22,14 +25,18 @@ export function Sections({ draft, setDraft }: Props) {
 
   return (
     <div className="sections">
-      <LocationCard draft={draft} set={set} update={update} />
-      <DisplayCard draft={draft} set={set} />
-      <WeatherCard draft={draft} set={set} />
-      <FlightsCard draft={draft} set={set} update={update} />
-      <TransportCard draft={draft} set={set} update={update} />
-      <TimetableCard draft={draft} set={set} />
-      <TickerCard draft={draft} set={set} />
-      <SlidesCard draft={draft} set={set} />
+      {group === "location" && (
+        <>
+          <LocationCard draft={draft} set={set} update={update} />
+          <DisplayCard draft={draft} set={set} />
+        </>
+      )}
+      {group === "weather" && <WeatherCard draft={draft} set={set} />}
+      {group === "flights" && <FlightsCard draft={draft} set={set} update={update} />}
+      {group === "transport" && <TransportCard draft={draft} set={set} update={update} />}
+      {group === "lectures" && <TimetableCard draft={draft} set={set} />}
+      {group === "ticker" && <TickerCard draft={draft} set={set} />}
+      {group === "slides" && <SlidesCard draft={draft} set={set} />}
     </div>
   );
 }

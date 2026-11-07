@@ -132,7 +132,7 @@ export interface Config {
     refresh_seconds: number;
   };
   announcements: { slides_enabled: boolean; slide_every_minutes: number; slide_seconds: number };
-  share: { enabled: boolean; relay_enabled: boolean; public_url: string };
+  share: { enabled: boolean; relay_enabled: boolean; public_url: string; max_minutes: number };
 }
 
 export interface TickerItem {

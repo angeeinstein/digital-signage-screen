@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Loader2, MonitorUp, Square, Wifi, Globe } from "lucide-react";
 import { api, ApiError } from "../lib/api";
-import { ShareSession, type Mode } from "./session";
+import { ShareSession, type Deadline, type Mode } from "./session";
 import "./share.css";
 
 interface Info {
@@ -49,6 +49,7 @@ export function SharePage() {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [now, setNow] = useState(Date.now());
+  const [deadline, setDeadline] = useState<Deadline | null>(null);
   const session = useRef<ShareSession | null>(null);
   const preview = useRef<HTMLVideoElement>(null);
   const stream = useRef<MediaStream | null>(null);
@@ -67,7 +68,7 @@ export function SharePage() {
   }, []);
 
   useEffect(() => {
-    if (step.kind !== "code") return;
+    if (step.kind !== "code" && step.kind !== "sharing") return;
     const id = setInterval(() => setNow(Date.now()), 500);
     return () => clearInterval(id);
   }, [step.kind]);
@@ -146,8 +147,10 @@ export function SharePage() {
       (text) => {
         session.current = null;
         stream.current = null;
+        setDeadline(null);
         setStep({ kind: "ended", text });
       },
+      setDeadline,
     );
     session.current = sess;
     setStep({ kind: "sharing", mode: "connecting" });
@@ -247,6 +250,7 @@ export function SharePage() {
                 </>
               )}
             </p>
+            <TimeLimit deadline={deadline} now={now} onExtend={() => session.current?.extend().catch(fail)} />
             <button className="btn btn-danger" onClick={() => session.current?.stop()}>
               <Square className="icon" /> Stop sharing
             </button>
@@ -269,5 +273,30 @@ export function SharePage() {
         )}
       </div>
     </main>
+  );
+}
+
+function TimeLimit({ deadline, now, onExtend }: { deadline: Deadline | null; now: number; onExtend: () => void }) {
+  if (!deadline?.endsAt) return null;
+  const left = deadline.endsAt - now;
+  const end = new Date(deadline.endsAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  if (left > deadline.warningMs) {
+    return <p className="muted small">Sharing ends automatically at {end}.</p>;
+  }
+  const m = Math.max(0, Math.floor(left / 60_000));
+  const sec = Math.max(0, Math.floor((left % 60_000) / 1000));
+  return (
+    <div className="share-warning" role="alert">
+      <strong>
+        Sharing ends in {m}:{String(sec).padStart(2, "0")}.
+      </strong>
+      {deadline.canExtend ? (
+        <button className="btn btn-primary" onClick={onExtend}>
+          Keep sharing ({deadline.extendMinutes >= 1 ? `${deadline.extendMinutes} more minutes` : "a bit longer"})
+        </button>
+      ) : (
+        <span className="small">It has already been extended once and can't be extended again.</span>
+      )}
+    </div>
   );
 }

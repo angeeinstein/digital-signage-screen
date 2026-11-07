@@ -4,7 +4,7 @@ import { api, ApiError } from "../lib/api";
 
 export interface ShareState {
   pending: { code: string; name: string; expires: number } | null;
-  active: { id: string; name: string; mode: string } | null;
+  active: { id: string; name: string; mode: string; ends_at: number | null; extended: boolean } | null;
 }
 
 interface ScreenEvents {
@@ -119,6 +119,9 @@ export function ShareLayer({ onActiveChange, now }: { onActiveChange: (active: b
   const pending = state?.pending;
   const remaining = pending ? Math.max(0, pending.expires - now.getTime() / 1000) : 0;
   const host = publicUrl.replace(/^https?:\/\//, "");
+  const endsAt = state?.active?.ends_at;
+  const left = endsAt ? endsAt - now.getTime() / 1000 : null;
+  const ending = left !== null && left <= 300;
 
   return (
     <>
@@ -129,6 +132,12 @@ export function ShareLayer({ onActiveChange, now }: { onActiveChange: (active: b
           <div className="share-badge">
             <MonitorUp className="icon" aria-hidden /> {state?.active?.name}
             {state?.active?.mode === "relay" && <span className="muted"> · via internet</span>}
+            {ending && (
+              <span className="share-ending">
+                {" "}
+                · ends in {Math.floor(Math.max(0, left) / 60)}:{String(Math.floor(Math.max(0, left) % 60)).padStart(2, "0")}
+              </span>
+            )}
             {host && <span className="muted"> · share yours at {host}/share</span>}
           </div>
         )}

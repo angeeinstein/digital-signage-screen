@@ -101,6 +101,7 @@ DEFAULTS: dict[str, Any] = {
         "enabled": False,
         "relay_enabled": True,  # fall back to streaming through the server (e.g. Cloudflare)
         "public_url": "",  # empty = detected from requests that come through Cloudflare
+        "max_minutes": 120,  # sharing ends after this (can be extended once by half); 0 = no limit
     },
     "announcements": {
         "slides_enabled": True,
@@ -262,6 +263,7 @@ SCHEMA: dict[str, dict[str, Callable[[Any], Any]]] = {
         "enabled": _bool,
         "relay_enabled": _bool,
         "public_url": _url,
+        "max_minutes": _num(0, 480, integer=True),
     },
     "announcements": {
         "slides_enabled": _bool,

@@ -23,10 +23,11 @@ const config: Config = {
     refresh_seconds: 900,
   },
   announcements: { slides_enabled: true, slide_every_minutes: 5, slide_seconds: 15 },
-  share: { enabled: false, relay_enabled: true, public_url: "" },
+  share: { enabled: false, relay_enabled: true, public_url: "", max_minutes: 120 },
 };
 
 function mockFetch(loggedIn: boolean) {
+  vi.stubGlobal("scrollTo", () => {});
   const calls: { url: string; init?: RequestInit }[] = [];
   const json = (body: unknown, status = 200) =>
     Promise.resolve(new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } }));
@@ -59,12 +60,18 @@ test("shows login when not authenticated", async () => {
 test("loads config, edits a value and saves only after Save", async () => {
   const calls = mockFetch(true);
   render(<AdminApp />);
+  fireEvent.click(await screen.findByRole("button", { name: "Flights" }));
   const radius = (await screen.findByLabelText("Radius (km)")) as HTMLInputElement;
   expect(radius.value).toBe("75");
   expect(screen.getByText("All changes saved")).toBeTruthy();
 
   fireEvent.change(radius, { target: { value: "40" } });
   expect(screen.getByText("You have unsaved changes")).toBeTruthy();
+  // The menu marks the section with unsaved changes; switching keeps the edit.
+  expect(screen.getByRole("button", { name: "Flights" }).querySelector(".unsaved-dot")).toBeTruthy();
+  fireEvent.click(screen.getByRole("button", { name: "Weather" }));
+  fireEvent.click(screen.getByRole("button", { name: "Flights" }));
+  expect(((await screen.findByLabelText("Radius (km)")) as HTMLInputElement).value).toBe("40");
 
   await act(async () => {
     fireEvent.click(screen.getByRole("button", { name: /Save/ }));
