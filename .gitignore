@@ -32,3 +32,5 @@ Thumbs.db
 *.log
 *.tmp
 frontend/tsconfig.tsbuildinfo
+frontend/dist.new/
+frontend/dist.old/

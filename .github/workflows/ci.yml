@@ -74,12 +74,17 @@ jobs:
         run: |
           curl -fsS -c ck -b ck -H 'X-Requested-With: signage' -H 'Content-Type: application/json'             -d '{"username":"admin","password":"admin"}' http://127.0.0.1:8080/api/auth/login
           curl -fsS -b ck -X POST -H 'X-Requested-With: signage' http://127.0.0.1:8080/api/admin/update/start
-          for _ in $(seq 1 120); do
+          seen=0
+          for _ in $(seq 1 300); do
+            # the admin page must be able to show the progress while the update runs
+            if curl -fsS -b ck -H 'X-Requested-With: signage' http://127.0.0.1:8080/api/admin/update 2>/dev/null \
+                | grep -q 'Python packages installed'; then seen=1; fi
             sudo grep -q '^@@RESULT' /var/log/digital-signage/update.log 2>/dev/null && break
-            sleep 5
+            sleep 2
           done
           sudo tail -25 /var/log/digital-signage/update.log
           sudo grep -q '^@@RESULT 0 ' /var/log/digital-signage/update.log
+          [ "$seen" = 1 ] || { echo "The update's progress was never visible through the API"; exit 1; }
           curl -fsS http://127.0.0.1:8080/api/health
           curl -fsS http://127.0.0.1:8080/api/display | grep -q 'CI Town'
       - name: Service logs

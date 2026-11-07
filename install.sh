@@ -221,9 +221,15 @@ setup_python() {
 build_frontend() {
     header "Frontend build"
     local fe="$INSTALL_DIR/frontend"
-    (cd "$fe" && npm ci --no-audit --no-fund --loglevel=error && npm run build --silent) \
+    # Build next to the served frontend and swap it in at once: the running
+    # dashboard keeps serving the old one meanwhile.
+    rm -rf "$fe/dist.new" "$fe/dist.old"
+    (cd "$fe" && npm ci --no-audit --no-fund --loglevel=error && npm run build --silent -- --outDir dist.new) \
         || die "Frontend build failed (see output above)"
-    [[ -f "$fe/dist/index.html" ]] || die "Frontend build produced no index.html"
+    [[ -f "$fe/dist.new/index.html" ]] || die "Frontend build produced no index.html"
+    if [[ -d "$fe/dist" ]]; then mv "$fe/dist" "$fe/dist.old"; fi
+    mv "$fe/dist.new" "$fe/dist"
+    rm -rf "$fe/dist.old"
     rm -rf "$fe/node_modules/.cache"
     ok "Frontend built"
 }
@@ -602,7 +608,10 @@ do_install() {
 do_update() {
     detect_user
     install_node
-    systemctl stop "$SERVICE_NAME" 2>/dev/null || true
+    # v2 keeps running (on the code it has loaded) until start_and_check
+    # restarts it, so the admin page can show the update's progress. Only v1,
+    # which writes its settings into the checkout, is stopped first.
+    if [[ ! -d "$INSTALL_DIR/signage" ]]; then systemctl stop "$SERVICE_NAME" 2>/dev/null || true; fi
     fetch_code
     setup_python
     build_frontend
