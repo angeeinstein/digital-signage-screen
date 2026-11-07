@@ -8,6 +8,11 @@ built for a Raspberry Pi driving a TV. It shows:
 - **Weather** in aviation units: wind (°/kt, gusts), QNH, visibility, dew point
 - **Public transport departures** from a configurable stop, with real-time delays and cancellations
 - **Upcoming lectures** from the FH JOANNEUM timetable, including lectures in progress and exams
+- **Announcements** (optional): event invitations and notices, with a poster image, shown as
+  a full-screen slide every few minutes and/or in the ticker, between a start and end date
+- **News ticker** (optional): a line at the bottom with emergencies (squawk 7700/7600/7500) and
+  rare or military aircraft nearby, aviation news headlines and announcements. It only
+  appears while there is something to show
 
 Everything is configured in a browser at `/admin`.
 
@@ -87,6 +92,7 @@ an "updated x min ago" marker, rather than the panel going blank.
 | Weather | Open-Meteo, or OpenWeatherMap | OWM only |
 | Departures | TRIAS API of Verbund Linie (Austria) | no |
 | Lectures | `almaty.fh-joanneum.at` timetable JSON | no |
+| Ticker news | RSS/Atom feeds (default: Austrian Wings, FlightGlobal) | no |
 
 ### Lessons learned (why v2 looks the way it does)
 
@@ -105,6 +111,11 @@ an "updated x min ago" marker, rather than the panel going blank.
 - **List overflow:** the display measures each list and only shows rows that
   fit completely ("6 of 9"). Every cell truncates with "…" instead of
   overflowing.
+- **News feeds:** The Aviation Herald has no public feed, and Aviation Safety
+  Network blocks automated clients, so the ticker uses feeds that are openly
+  published, filtered by keywords such as "crash" or "Notlandung".
+- **Slides** never cover the dashboard more than half of the time. Their
+  schedule follows the clock, so it survives reloads.
 
 ## Development
 
@@ -140,6 +151,8 @@ signage/            Flask backend
   auth.py           password hashing, login throttling, CSRF guard
   poller.py         background refresh with stale/error tracking
   services.py       wires settings → data sources → pollers
+  ticker.py         aircraft events (emergencies, rare types) for the ticker
+  announcements.py  announcements and uploaded images (data/media/)
   providers/        one module per external API
 frontend/src/
   display/          the TV screen (AutoFitList, panels)

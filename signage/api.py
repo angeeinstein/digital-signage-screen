@@ -11,9 +11,11 @@ from zoneinfo import ZoneInfo
 from flask import Blueprint, current_app, jsonify, request, session
 
 from . import __version__
+from .announcements import AnnouncementError, AnnouncementStore, is_active
 from .auth import CredentialStore, LoginThrottle, login_required
 from .config import ConfigError, ConfigStore, admin_view, public_view, validate
 from .providers import flights as flights_mod
+from .providers import news as news_mod
 from .providers import routes as routes_mod
 from .providers import timetable as timetable_mod
 from .providers import transport as transport_mod
@@ -39,6 +41,10 @@ def _creds() -> CredentialStore:
 
 def _throttle() -> LoginThrottle:
     return current_app.extensions["signage.throttle"]
+
+
+def _ann() -> AnnouncementStore:
+    return current_app.extensions["signage.announcements"]
 
 
 def ok(**data: Any):
@@ -67,13 +73,22 @@ def health():
 @bp.get("/display")
 def display():
     store = _cfg()
+    svc = _svc()
+    config = store.get()
     return ok(
         version=__version__,
         build=_build_id(),
         revision=store.revision,
         server_time=datetime.now(timezone.utc).isoformat(),
-        config=public_view(store.get()),
-        sources=_svc().snapshot(),
+        config=public_view(config),
+        sources={k: v for k, v in svc.snapshot().items() if k != "news"},
+        ticker={"speed": config["ticker"]["speed"], "items": svc.ticker_items()},
+        slides={
+            "items": svc.slides(),
+            "every_minutes": config["announcements"]["slide_every_minutes"],
+            "seconds": config["announcements"]["slide_seconds"],
+            "preview": svc.current_preview(),
+        },
     )
 
 
@@ -215,6 +230,12 @@ def test_source(source: str):
             cohorts = timetable_mod.parse_cohorts(c["timetable"]["cohorts"], datetime.now(tz))
             return ok(message=f"{len(lectures)} lectures in the next {c['timetable']['time_window_hours']} h "
                               f"({', '.join(cohorts)})", data=lectures)
+        if source == "news":
+            headlines, meta = news_mod.fetch_news(svc.session, c["ticker"])
+            failed = f", {len(meta['failed'])} feed(s) failed" if meta.get("failed") else ""
+            latest = f" Latest: {headlines[0]['title']}" if headlines else ""
+            return ok(message=f"{len(headlines)} matching of {meta.get('checked', 0)} headlines from "
+                              f"{meta.get('feeds', 0)} feed(s){failed}.{latest}", data=headlines)
         if source == "airlabs":
             key = c["routes"]["airlabs_api_key"]
             if not key:
@@ -275,3 +296,72 @@ def delete_route(callsign: str):
 def clear_routes():
     removed = _svc().routes.clear(keep_manual=True)
     return ok(removed=removed)
+
+
+# --- admin: announcements ------------------------------------------------------------------
+
+def _with_state(a: dict[str, Any]) -> dict[str, Any]:
+    today = datetime.now(ZoneInfo(_cfg().get()["location"]["timezone"])).date()
+    return {**a, "active": is_active(a, today)}
+
+
+@bp.get("/admin/announcements")
+@login_required
+def list_announcements():
+    return ok(announcements=[_with_state(a) for a in _ann().list()])
+
+
+@bp.post("/admin/announcements")
+@login_required
+def create_announcement():
+    try:
+        a = _ann().create(_body())
+    except AnnouncementError as e:
+        return fail(str(e), 422)
+    return ok(announcement=_with_state(a))
+
+
+@bp.put("/admin/announcements/<ann_id>")
+@login_required
+def update_announcement(ann_id: str):
+    try:
+        a = _ann().update(ann_id, _body())
+    except AnnouncementError as e:
+        return fail(str(e), 422)
+    if a is None:
+        return fail("Not found", 404)
+    return ok(announcement=_with_state(a))
+
+
+@bp.delete("/admin/announcements/<ann_id>")
+@login_required
+def delete_announcement(ann_id: str):
+    if not _ann().delete(ann_id):
+        return fail("Not found", 404)
+    return ok()
+
+
+@bp.post("/admin/announcements/<ann_id>/preview")
+@login_required
+def preview_announcement(ann_id: str):
+    if not _ann().get(ann_id):
+        return fail("Not found", 404)
+    seconds = _cfg().get()["announcements"]["slide_seconds"]
+    _svc().preview(ann_id, seconds)
+    return ok(seconds=seconds)
+
+
+@bp.post("/admin/media")
+@login_required
+def upload_media():
+    from .announcements import MAX_IMAGE_BYTES
+
+    request.max_content_length = MAX_IMAGE_BYTES + 64 * 1024
+    file = request.files.get("file")
+    if file is None:
+        return fail("No file received")
+    try:
+        name = _ann().save_image(file.stream)
+    except AnnouncementError as e:
+        return fail(str(e), 422)
+    return ok(image=name, url=f"/media/{name}")

@@ -24,6 +24,18 @@ SECRET_FIELDS: list[tuple[str, str]] = [
 
 FLIGHT_PROVIDERS = ["adsb.lol", "adsb.fi", "airplanes.live"]
 WEATHER_PROVIDERS = ["open-meteo", "openweathermap"]
+TICKER_SPEEDS = ["slow", "normal", "fast"]
+
+# Free RSS feeds that answer automated clients (AvHerald has no public feed,
+# Aviation Safety Network blocks bots).
+DEFAULT_NEWS_FEEDS = "\n".join([
+    "https://www.austrianwings.info/feed.rss",
+    "https://www.flightglobal.com/feed/",
+])
+# Only headlines containing one of these are shown (case-insensitive, also
+# inside words, so "absturz" matches "Flugzeugabsturz"). Empty = all headlines.
+DEFAULT_NEWS_KEYWORDS = ("crash, accident, emergency landing, incident, fatal, killed, "
+                         "absturz, unfall, notlandung, zwischenfall, tote")
 
 DEFAULTS: dict[str, Any] = {
     "location": {
@@ -72,6 +84,23 @@ DEFAULTS: dict[str, Any] = {
         "time_window_hours": 24,
         "show_ongoing": True,
         "refresh_seconds": 300,
+    },
+    "ticker": {
+        "enabled": False,
+        "speed": "normal",
+        "emergencies": True,  # squawk 7500/7600/7700 in range
+        "notable_aircraft": True,  # rare types and military aircraft in range
+        "news_enabled": True,
+        "news_feeds": DEFAULT_NEWS_FEEDS,
+        "news_keywords": DEFAULT_NEWS_KEYWORDS,
+        "news_max_age_hours": 24,
+        "news_max_items": 5,
+        "refresh_seconds": 900,
+    },
+    "announcements": {
+        "slides_enabled": True,
+        "slide_every_minutes": 5,
+        "slide_seconds": 15,
     },
 }
 
@@ -135,6 +164,17 @@ def _providers(v: Any) -> list[str]:
     return out
 
 
+def _feeds(v: Any) -> str:
+    v = _str(2000)(v)
+    urls = [u.strip() for u in v.splitlines() if u.strip()]
+    for u in urls:
+        if not u.startswith(("http://", "https://")) or " " in u:
+            raise ConfigError(f"not a web address: {u[:60]}")
+    if len(urls) > 10:
+        raise ConfigError("at most 10 feeds")
+    return "\n".join(urls)
+
+
 def _timezone(v: Any) -> str:
     from zoneinfo import ZoneInfo
 
@@ -193,6 +233,23 @@ SCHEMA: dict[str, dict[str, Callable[[Any], Any]]] = {
         "time_window_hours": _num(1, 168, integer=True),
         "show_ongoing": _bool,
         "refresh_seconds": _num(60, 3600, integer=True),
+    },
+    "ticker": {
+        "enabled": _bool,
+        "speed": _choice(TICKER_SPEEDS),
+        "emergencies": _bool,
+        "notable_aircraft": _bool,
+        "news_enabled": _bool,
+        "news_feeds": _feeds,
+        "news_keywords": _str(500),
+        "news_max_age_hours": _num(1, 168, integer=True),
+        "news_max_items": _num(1, 20, integer=True),
+        "refresh_seconds": _num(300, 3600, integer=True),
+    },
+    "announcements": {
+        "slides_enabled": _bool,
+        "slide_every_minutes": _num(1, 120, integer=True),
+        "slide_seconds": _num(5, 120, integer=True),
     },
 }
 

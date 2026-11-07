@@ -39,6 +39,30 @@ export function TextInput(props: {
   );
 }
 
+export function TextArea(props: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  help?: ReactNode;
+  placeholder?: string;
+  rows?: number;
+}) {
+  return (
+    <Field label={props.label} help={props.help}>
+      {(id) => (
+        <textarea
+          id={id}
+          rows={props.rows ?? 3}
+          value={props.value}
+          placeholder={props.placeholder}
+          spellCheck={false}
+          onChange={(e) => props.onChange(e.target.value)}
+        />
+      )}
+    </Field>
+  );
+}
+
 /** Number input that keeps the raw text while typing (so "4." or "" are allowed). */
 export function NumberInput(props: {
   label: string;

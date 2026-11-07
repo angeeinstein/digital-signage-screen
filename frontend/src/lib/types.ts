@@ -42,6 +42,8 @@ export interface Flight {
   bearing_deg: number;
   squawk: string | null;
   emergency: boolean;
+  emergency_kind?: string | null;
+  military?: boolean;
   route: { origin: Airport; destination: Airport; source: string } | null;
 }
 
@@ -117,6 +119,49 @@ export interface Config {
     show_ongoing: boolean;
     refresh_seconds: number;
   };
+  ticker: {
+    enabled: boolean;
+    speed: "slow" | "normal" | "fast";
+    emergencies: boolean;
+    notable_aircraft: boolean;
+    news_enabled: boolean;
+    news_feeds: string;
+    news_keywords: string;
+    news_max_age_hours: number;
+    news_max_items: number;
+    refresh_seconds: number;
+  };
+  announcements: { slides_enabled: boolean; slide_every_minutes: number; slide_seconds: number };
+}
+
+export interface TickerItem {
+  id: string;
+  kind: "emergency" | "aircraft" | "news" | "announcement";
+  text: string;
+  source?: string;
+  published?: string | null;
+}
+
+export interface Slide {
+  id: string;
+  title: string;
+  text: string;
+  image: string | null;
+}
+
+export interface Announcement {
+  id: string;
+  title: string;
+  text: string;
+  image: string;
+  start_date: string;
+  end_date: string;
+  in_ticker: boolean;
+  as_slide: boolean;
+  enabled: boolean;
+  active?: boolean;
+  created_at?: string;
+  updated_at?: string;
 }
 
 export interface DisplayState {
@@ -132,6 +177,8 @@ export interface DisplayState {
     transport: Source<Departure[], { stop_name?: string }>;
     timetable: Source<Lecture[]>;
   };
+  ticker: { speed: Config["ticker"]["speed"]; items: TickerItem[] };
+  slides: { items: Slide[]; every_minutes: number; seconds: number; preview: (Slide & { until: number }) | null };
 }
 
 export interface Stop {

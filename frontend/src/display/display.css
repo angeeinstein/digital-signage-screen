@@ -9,9 +9,24 @@ html.is-display {
   font-size: calc(var(--scale) * clamp(11px, 0.55vw + 0.45vh, 32px));
 }
 
-.display {
+/* Screen: dashboard on top, optional ticker strip below. */
+.screen {
   height: 100vh;
   width: 100vw;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.screen-main {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.display {
+  height: 100%;
+  width: 100%;
   overflow: hidden;
   display: grid;
   grid-template-columns: minmax(0, 1.85fr) minmax(0, 1fr);
@@ -20,6 +35,7 @@ html.is-display {
 }
 
 .display.boot {
+  height: 100vh;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -544,6 +560,197 @@ html.is-display {
   border-radius: 999px;
   font-weight: 600;
   box-shadow: 0 0.5rem 2rem rgba(0, 0, 0, 0.4);
+}
+
+.has-ticker .offline-banner {
+  bottom: 4.5rem;
+}
+
+/* --- ticker --- */
+.ticker {
+  flex: none;
+  display: flex;
+  height: 2.7rem;
+  margin: 0 0.75rem 0.75rem;
+  background: var(--panel);
+  border: 1px solid var(--panel-border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  font-size: 1.1rem;
+}
+
+.ticker.urgent {
+  border-color: rgba(255, 107, 107, 0.6);
+  background: rgba(255, 107, 107, 0.12);
+}
+
+.ticker-viewport {
+  position: relative;
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  -webkit-mask-image: linear-gradient(to right, transparent, #000 1.5rem, #000 calc(100% - 1.5rem), transparent);
+  mask-image: linear-gradient(to right, transparent, #000 1.5rem, #000 calc(100% - 1.5rem), transparent);
+}
+
+.ticker-track {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: max-content;
+  display: flex;
+  align-items: center;
+  padding: 0 1.25rem;
+  white-space: nowrap;
+}
+
+.ticker-track.moving {
+  padding: 0;
+  animation-name: ticker-scroll;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+  will-change: transform;
+}
+
+@keyframes ticker-scroll {
+  from {
+    transform: translateX(var(--from));
+  }
+  to {
+    transform: translateX(var(--to));
+  }
+}
+
+.ticker-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.ticker-item + .ticker-item::before {
+  content: "";
+  width: 0.35rem;
+  height: 0.35rem;
+  margin: 0 1.6rem;
+  border-radius: 50%;
+  background: var(--muted);
+  opacity: 0.6;
+}
+
+.ticker-item .icon {
+  color: var(--accent);
+}
+
+.ticker-item.kind-announcement .icon {
+  color: var(--now);
+}
+
+.ticker-item.kind-emergency {
+  color: var(--bad);
+  font-weight: 700;
+}
+
+.ticker-item.kind-emergency .icon {
+  color: var(--bad);
+}
+
+.ticker-source {
+  color: var(--muted);
+  font-size: 0.85em;
+}
+
+/* --- announcement slides (cover the dashboard, not the ticker) --- */
+.slide-overlay {
+  position: absolute;
+  inset: 0.75rem;
+  display: flex;
+  overflow: hidden;
+  background: var(--bg);
+  border: 1px solid var(--panel-border);
+  border-radius: var(--radius);
+  animation: slide-in 0.6s ease-out;
+}
+
+@keyframes slide-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.slide-bg {
+  position: absolute;
+  inset: -10%;
+  background-size: cover;
+  background-position: center;
+  filter: blur(40px) brightness(0.4);
+}
+
+.slide {
+  position: relative;
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1.25rem;
+  padding: 2rem 3rem;
+}
+
+.slide-image {
+  flex: 1 1 0;
+  min-height: 0;
+  width: 100%;
+  object-fit: contain;
+  filter: drop-shadow(0 0.75rem 2rem rgba(0, 0, 0, 0.5));
+}
+
+.slide-caption {
+  flex: none;
+  max-width: 70rem;
+  text-align: center;
+}
+
+.slide-caption h1 {
+  margin: 0;
+  font-size: 2.4rem;
+  line-height: 1.15;
+}
+
+.slide-caption p {
+  margin: 0.6rem 0 0;
+  font-size: 1.4rem;
+  color: var(--muted);
+  white-space: pre-line;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 4;
+  overflow: hidden;
+}
+
+.slide.text-only .slide-caption h1 {
+  font-size: 4.5rem;
+}
+
+.slide.text-only .slide-caption p {
+  font-size: 2.1rem;
+  -webkit-line-clamp: 8;
+}
+
+.slide-progress {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 0.25rem;
+  background: var(--accent);
+  transform-origin: left;
+  transition: transform 1s linear;
 }
 
 /* Portrait screens: stack the columns. */

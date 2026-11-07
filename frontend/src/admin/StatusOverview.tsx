@@ -1,16 +1,17 @@
 import { useEffect, useState } from "react";
 import { Activity, RefreshCw } from "lucide-react";
 import { api } from "../lib/api";
-import type { DisplayState } from "../lib/types";
+import type { Source } from "../lib/types";
 import { ago } from "../lib/format";
 import { Card } from "./fields";
 
-type Sources = DisplayState["sources"];
-const LABELS: Record<keyof Sources, string> = {
+type Sources = Record<string, Source<unknown> | undefined>;
+const LABELS: Record<string, string> = {
   flights: "Flights",
   weather: "Weather",
   transport: "Departures",
   timetable: "Lectures",
+  news: "News (ticker)",
 };
 
 /** Live health of each data source, refreshed every 10 s. */
@@ -49,7 +50,7 @@ export function StatusOverview() {
     >
       <div className="status-grid">
         {sources &&
-          (Object.keys(LABELS) as (keyof Sources)[]).map((k) => {
+          Object.keys(LABELS).map((k) => {
             const s = sources[k];
             if (!s) return null;
             const state = s.status === "error" ? "error" : s.stale ? "stale" : s.status;

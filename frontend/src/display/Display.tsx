@@ -7,6 +7,8 @@ import { FlightsPanel } from "./FlightsPanel";
 import { Header } from "./Header";
 import { useDisplayState, useNow } from "./hooks";
 import { LecturesPanel } from "./LecturesPanel";
+import { currentSlide, SlideOverlay, usePreloadSlides } from "./Slides";
+import { Ticker } from "./Ticker";
 import "./display.css";
 
 export function Display() {
@@ -17,6 +19,8 @@ export function Display() {
   useEffect(() => {
     document.documentElement.style.setProperty("--scale", String(config?.display.font_scale ?? 1));
   }, [config?.display.font_scale]);
+
+  usePreloadSlides(state?.slides?.items ?? []);
 
   if (!state || !config) {
     return (
@@ -32,20 +36,32 @@ export function Display() {
   const showFlights = sources.flights.status !== "disabled";
   const showTransport = sources.transport.status !== "disabled" || !!config.transport.stop_id;
   const showLectures = sources.timetable.status !== "disabled";
+  const tickerItems = state.ticker?.items ?? [];
+  const slide = state.slides ? currentSlide(state.slides, now) : null;
 
+  // Layout: the dashboard fills the screen; the ticker (only when it has
+  // content) takes a strip at the bottom and the dashboard shrinks to fit.
+  // Slides cover the dashboard but not the ticker. The dashboard stays
+  // mounted underneath, so the map doesn't reload after each slide.
   return (
-    <div className={`display${showMap ? "" : " no-map"}${showFlights ? "" : " no-flights"}`}>
-      <div className="col-left">
-        {showMap && <MapPanel config={config} />}
-        {showFlights && <FlightsPanel source={sources.flights} radiusKm={config.flights.radius_km} now={now} />}
+    <div className={`screen${tickerItems.length ? " has-ticker" : ""}`}>
+      <div className="screen-main">
+        <div className={`display${showMap ? "" : " no-map"}${showFlights ? "" : " no-flights"}`} aria-hidden={!!slide}>
+          <div className="col-left">
+            {showMap && <MapPanel config={config} />}
+            {showFlights && <FlightsPanel source={sources.flights} radiusKm={config.flights.radius_km} now={now} />}
+          </div>
+          <div className="col-right">
+            <Header now={now} timeZone={tz} locationName={config.location.name} weather={sources.weather} />
+            {showTransport && <DeparturesPanel source={sources.transport} timeZone={tz} now={now} />}
+            {showLectures && (
+              <LecturesPanel source={sources.timetable} timeZone={tz} windowHours={config.timetable.time_window_hours} now={now} />
+            )}
+          </div>
+        </div>
+        {slide && <SlideOverlay current={slide} />}
       </div>
-      <div className="col-right">
-        <Header now={now} timeZone={tz} locationName={config.location.name} weather={sources.weather} />
-        {showTransport && <DeparturesPanel source={sources.transport} timeZone={tz} now={now} />}
-        {showLectures && (
-          <LecturesPanel source={sources.timetable} timeZone={tz} windowHours={config.timetable.time_window_hours} now={now} />
-        )}
-      </div>
+      {tickerItems.length > 0 && <Ticker items={tickerItems} speed={state.ticker.speed} />}
       {offline && (
         <div className="offline-banner" role="status">
           <WifiOff className="icon" aria-hidden /> Connection to server lost · last update {ago(lastOk?.toISOString() ?? null, now)}

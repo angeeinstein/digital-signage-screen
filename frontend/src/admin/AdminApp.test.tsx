@@ -10,6 +10,19 @@ const config: Config = {
   routes: { enabled: true, cache_days: 14, airlabs_enabled: false, airlabs_api_key: "", airlabs_daily_limit: 30 },
   transport: { enabled: true, stop_id: "at:46:4227", stop_name: "Alte Poststraße", max_items: 8, refresh_seconds: 60 },
   timetable: { enabled: true, cohorts: "", max_items: 8, time_window_hours: 24, show_ongoing: true, refresh_seconds: 300 },
+  ticker: {
+    enabled: false,
+    speed: "normal",
+    emergencies: true,
+    notable_aircraft: true,
+    news_enabled: true,
+    news_feeds: "https://www.flightglobal.com/feed/",
+    news_keywords: "crash",
+    news_max_age_hours: 24,
+    news_max_items: 5,
+    refresh_seconds: 900,
+  },
+  announcements: { slides_enabled: true, slide_every_minutes: 5, slide_seconds: 15 },
 };
 
 function mockFetch(loggedIn: boolean) {
@@ -26,6 +39,7 @@ function mockFetch(loggedIn: boolean) {
       return json({ ok: true, config: body.config, revision: 4 });
     }
     if (url === "/api/admin/status") return json({ ok: true, sources: {} });
+    if (url === "/api/admin/announcements") return json({ ok: true, announcements: [] });
     return json({ ok: false, error: "unexpected" }, 404);
   });
   return calls;

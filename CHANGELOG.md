@@ -1,5 +1,20 @@
 # Changelog
 
+## 2.1.0 – 2026-11-07
+
+### Added
+- **Announcements**: event invitations and notices with an optional poster image, a start and
+  end date, shown as full-screen slides every few minutes and/or in the ticker. "Show now"
+  button to check one on the TV. Slides never cover the dashboard more than half of the time.
+- **News ticker** (off by default): emergencies and rare or military aircraft from the live
+  ADS-B data, aviation headlines from RSS feeds filtered by keywords, and announcements.
+  It disappears when there is nothing to show; the dashboard takes the space back.
+- "News (ticker)" in the admin status overview, and a test button for the feeds.
+
+### Changed
+- Medical flights ("lifeguard") are no longer highlighted as emergencies.
+- nginx accepts uploads up to 12 MB (was 1 MB).
+
 ## 2.0.0 – 2026-11-06
 
 Complete rewrite. The v1 knowledge (API quirks, timetable parsing, aircraft icons) was kept; the code and UI are new.

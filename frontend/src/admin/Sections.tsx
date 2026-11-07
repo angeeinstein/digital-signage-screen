@@ -3,6 +3,7 @@ import { BusFront, CloudSun, GraduationCap, MapPin, Monitor, Plane, Search } fro
 import { api, ApiError } from "../lib/api";
 import type { Config, Stop } from "../lib/types";
 import { Card, NumberInput, Select, TestButton, TextInput, Toggle } from "./fields";
+import { SlidesCard, TickerCard } from "./TickerSections";
 
 type SetDraft = (fn: (c: Config) => Config) => void;
 
@@ -27,11 +28,13 @@ export function Sections({ draft, setDraft }: Props) {
       <FlightsCard draft={draft} set={set} update={update} />
       <TransportCard draft={draft} set={set} update={update} />
       <TimetableCard draft={draft} set={set} />
+      <TickerCard draft={draft} set={set} />
+      <SlidesCard draft={draft} set={set} />
     </div>
   );
 }
 
-type Setter = <S extends keyof Config, K extends keyof Config[S]>(section: S, key: K) => (value: Config[S][K]) => void;
+export type Setter = <S extends keyof Config, K extends keyof Config[S]>(section: S, key: K) => (value: Config[S][K]) => void;
 
 function LocationCard({ draft, set, update }: { draft: Config; set: Setter; update: SetDraft }) {
   const [query, setQuery] = useState("");

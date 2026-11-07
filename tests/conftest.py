@@ -23,6 +23,14 @@ class FakeResponse:
     def json(self):
         return self._body
 
+    def iter_content(self, chunk_size=1):
+        data = self.content
+        for i in range(0, len(data), chunk_size):
+            yield data[i:i + chunk_size]
+
+    def close(self):
+        pass
+
     def raise_for_status(self):
         if self.status_code >= 400:
             import requests

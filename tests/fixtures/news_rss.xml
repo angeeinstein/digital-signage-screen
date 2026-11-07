@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Structure as served by austrianwings.info (2026-11), headlines replaced. -->
+<rss version="2.0" xmlns:dc="http://purl.org/dc/elements/1.1/">
+  <channel>
+    <title>Austrian Wings - Österreichs Luftfahrtmagazin</title>
+    <link>https://www.austrianwings.info</link>
+    <item>
+      <guid>news-1</guid>
+      <pubDate>
+                              Fri, 06 Nov 2026 14:08:00 +0100
+      </pubDate>
+      <title>Notlandung in Wien: A320 nach Triebwerksproblem sicher gelandet</title>
+      <link>
+                https://www.austrianwings.info/2026/11/notlandung/
+      </link>
+      <description>&lt;p&gt;Details …&lt;/p&gt;</description>
+    </item>
+    <item>
+      <guid>news-2</guid>
+      <pubDate>Fri, 06 Nov 2026 10:00:00 +0100</pubDate>
+      <title>Neue Strecke Graz &amp;ndash; Hamburg ab Sommer</title>
+      <link>https://www.austrianwings.info/2026/11/strecke/</link>
+    </item>
+    <item>
+      <guid>news-3</guid>
+      <pubDate>Mon, 02 Nov 2026 09:00:00 +0100</pubDate>
+      <title>Flugzeugabsturz in Alaska: Ermittlungen laufen</title>
+      <link>https://www.austrianwings.info/2026/11/alaska/</link>
+    </item>
+    <item>
+      <guid>news-4</guid>
+      <title>Undated crash report</title>
+    </item>
+  </channel>
+</rss>

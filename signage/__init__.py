@@ -10,7 +10,7 @@ from pathlib import Path
 
 from flask import Flask, abort, send_from_directory
 
-__version__ = "2.0.0"
+__version__ = "2.1.0"
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 FRONTEND_DIST = BASE_DIR / "frontend" / "dist"
@@ -20,6 +20,7 @@ logger = logging.getLogger(__name__)
 
 
 def create_app(data_dir: str | os.PathLike | None = None, start_pollers: bool | None = None) -> Flask:
+    from .announcements import MEDIA_NAME_RE, AnnouncementStore
     from .api import bp as api_bp
     from .auth import CredentialStore, LoginThrottle, csrf_protect, load_or_create_secret_key
     from .config import ConfigStore
@@ -48,13 +49,16 @@ def create_app(data_dir: str | os.PathLike | None = None, start_pollers: bool | 
     config = ConfigStore(data / "config.json", legacy_path=_legacy(data, "dashboard_config.json"))
     credentials = CredentialStore(data / "auth.json", legacy_path=_legacy(data, "admin_auth.json"))
     routes = RouteResolver(data / "route_cache.json", make_session())
-    services = Services(config, routes)
+    media_dir = data / "media"
+    announcements = AnnouncementStore(data / "announcements.json", media_dir)
+    services = Services(config, routes, announcements)
 
     app.extensions.update({
         "signage.config": config,
         "signage.credentials": credentials,
         "signage.throttle": LoginThrottle(),
         "signage.services": services,
+        "signage.announcements": announcements,
     })
 
     if os.environ.get("SIGNAGE_BEHIND_PROXY") == "1":
@@ -91,6 +95,13 @@ def create_app(data_dir: str | os.PathLike | None = None, start_pollers: bool | 
             return ("<h1>Frontend not built</h1><p>Run <code>npm ci &amp;&amp; npm run build</code> "
                     "in the <code>frontend/</code> directory.</p>", 503)
         return send_from_directory(FRONTEND_DIST, "index.html")
+
+    @app.get("/media/<name>")
+    def media(name: str):
+        # Uploaded announcement images (random names, type checked on upload).
+        if not MEDIA_NAME_RE.match(name):
+            abort(404)
+        return send_from_directory(media_dir, name, max_age=86400)
 
     @app.get("/favicon.svg")
     def favicon():

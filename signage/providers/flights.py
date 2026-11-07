@@ -31,6 +31,19 @@ PROVIDER_URLS = {
 
 MAX_POSITION_AGE_S = 60  # ignore aircraft whose last position is older
 
+EMERGENCY_SQUAWKS = {"7500": "hijack", "7600": "radio failure", "7700": "emergency"}
+# readsb "emergency" values; "lifeguard" (medical flight) is not an emergency.
+EMERGENCY_STATES = {"general": "emergency", "minfuel": "minimum fuel", "nordo": "radio failure",
+                    "unlawful": "hijack", "downed": "aircraft down"}
+
+
+def emergency_of(ac: dict[str, Any]) -> str | None:
+    """Short description of an emergency declared by the aircraft, else None."""
+    squawk = str(ac.get("squawk") or "")
+    if squawk in EMERGENCY_SQUAWKS:
+        return EMERGENCY_SQUAWKS[squawk]
+    return EMERGENCY_STATES.get(str(ac.get("emergency") or "none"))
+
 
 class ProviderError(Exception):
     pass
@@ -110,7 +123,9 @@ def normalize(raw: list[dict[str, Any]], lat: float, lon: float, radius_km: floa
             "distance_km": round(distance, 1),
             "bearing_deg": round(bearing_deg(lat, lon, a_lat, a_lon)),
             "squawk": ac.get("squawk"),
-            "emergency": ac.get("emergency") not in (None, "none"),
+            "emergency": emergency_of(ac) is not None,
+            "emergency_kind": emergency_of(ac),
+            "military": bool((ac.get("dbFlags") or 0) & 1),
             "route": None,
         }
         # Some feeds list the same airframe twice (e.g. ADS-B + MLAT); keep the closer.

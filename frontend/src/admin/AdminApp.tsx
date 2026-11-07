@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { LogOut, Monitor, Save } from "lucide-react";
 import { api, ApiError } from "../lib/api";
 import type { Config } from "../lib/types";
+import { Announcements } from "./Announcements";
 import { Login } from "./Login";
 import { PasswordDialog } from "./PasswordDialog";
 import { RouteCache } from "./RouteCache";
@@ -107,6 +108,8 @@ function AdminPanel({ session, onSessionChange }: { session: Session; onSessionC
       <StatusOverview />
 
       {draft ? <Sections draft={draft} setDraft={setDraft} /> : <div className="card">Loading…</div>}
+
+      <Announcements />
 
       <RouteCache />
 
