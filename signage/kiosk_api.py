@@ -89,6 +89,39 @@ def kiosk_action(action: str):
     return jsonify({"ok": True, "message": messages[action]})
 
 
+# --- admin: updates -----------------------------------------------------------------------------
+
+@bp.get("/api/admin/update")
+@login_required
+def update_status():
+    from . import __version__
+    from .updates import current_version
+
+    return jsonify({"ok": True, "version": __version__, "current": current_version(),
+                    **current_app.extensions["signage.updater"].status()})
+
+
+@bp.post("/api/admin/update/check")
+@login_required
+def update_check():
+    from .updates import check_remote
+
+    try:
+        return jsonify({"ok": True, **check_remote()})
+    except Exception as e:  # git missing, offline, ...
+        return _fail(f"Could not check for updates: {e}", 502)
+
+
+@bp.post("/api/admin/update/start")
+@login_required
+def update_start():
+    try:
+        current_app.extensions["signage.updater"].request()
+    except RuntimeError as e:
+        return _fail(str(e), 409)
+    return jsonify({"ok": True})
+
+
 @bp.get("/api/admin/kiosk/screenshot")
 @login_required
 def kiosk_screenshot():

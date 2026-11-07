@@ -6,7 +6,7 @@
 #
 # Options (all optional):
 #   --update | --repair | --uninstall   run that action without the menu
-#   --branch NAME                       git branch to install (default: main)
+#   --branch NAME                       git branch to install (default: main; updates keep the installed one)
 #   --user NAME                         user the service runs as
 #   --port N                            HTTP port of the app (default: 8080)
 #   --nginx | --no-nginx                put nginx on port 80 in front (asks if omitted)
@@ -28,6 +28,7 @@ VENV_DIR="$INSTALL_DIR/venv"
 SERVICE_NAME="digital-signage"
 REPO_URL="${SIGNAGE_REPO:-https://github.com/angeeinstein/digital-signage-screen.git}"
 BRANCH="main"
+BRANCH_SET=0
 PORT="8080"
 NODE_MAJOR_MIN=20      # Vite needs Node >= 20.19
 NODE_SETUP_MAJOR=22    # LTS line installed from NodeSource when needed
@@ -59,7 +60,7 @@ parse_args() {
             --update) ACTION="update" ;;
             --repair) ACTION="repair" ;;
             --uninstall) ACTION="uninstall" ;;
-            --branch) BRANCH="$2"; shift ;;
+            --branch) BRANCH="$2"; BRANCH_SET=1; shift ;;
             --user) SERVICE_USER="$2"; shift ;;
             --port) PORT="$2"; shift ;;
             --nginx) USE_NGINX="yes" ;;
@@ -177,8 +178,17 @@ backup_data() {
 }
 
 fetch_code() {
-    header "Application code ($BRANCH)"
     git config --global --add safe.directory "$INSTALL_DIR" 2>/dev/null || true
+    if is_installed; then
+        # Stay on the installed branch and remote unless told otherwise.
+        if [[ $BRANCH_SET -eq 0 ]]; then
+            BRANCH="$(git -C "$INSTALL_DIR" rev-parse --abbrev-ref HEAD 2>/dev/null || echo main)"
+        fi
+        if [[ -z "${SIGNAGE_REPO:-}" ]]; then
+            REPO_URL="$(git -C "$INSTALL_DIR" remote get-url origin 2>/dev/null || echo "$REPO_URL")"
+        fi
+    fi
+    header "Application code ($BRANCH)"
     if is_installed; then
         preserve_legacy_state
         backup_data
@@ -486,6 +496,83 @@ remove_kiosk() {
     info "Kiosk helper removed. Your previous autostart files were kept as *.before-signage-kiosk / *.disabled-by-signage."
 }
 
+################################################################################
+# Updates from the admin page
+################################################################################
+# The app can't run this installer (it runs unprivileged). It creates
+# data/update-request; a path unit sees the file and starts the update
+# service as root, which runs the newest installer and logs to UPDATE_LOG.
+
+UPDATE_SCRIPT="/usr/local/lib/$SERVICE_NAME/self-update.sh"
+UPDATE_LOG_DIR="/var/log/$SERVICE_NAME"
+
+install_update_service() {
+    mkdir -p "$(dirname "$UPDATE_SCRIPT")" "$UPDATE_LOG_DIR"
+    chmod 755 "$UPDATE_LOG_DIR"
+    cat > "$UPDATE_SCRIPT" <<'EOF'
+#!/bin/bash
+# Started by digital-signage-update.service (admin page -> "Update now").
+set -uo pipefail
+DIR="@INSTALL_DIR@"
+LOG="@LOG_DIR@/update.log"
+rm -f "@DATA_DIR@/update-request"
+exec >"$LOG" 2>&1
+chmod 644 "$LOG"
+echo "Update started $(date '+%Y-%m-%d %H:%M:%S')"
+git_() { git -c safe.directory="$DIR" -C "$DIR" "$@"; }
+BRANCH="$(git_ rev-parse --abbrev-ref HEAD)"
+SCRIPT="/run/@SERVICE_NAME@-install.sh"
+# Run a copy of the newest installer: the update replaces install.sh while it runs.
+if git_ fetch --quiet origin "$BRANCH" && git_ show "origin/$BRANCH:install.sh" > "$SCRIPT"; then
+    echo "Using the newest installer from branch $BRANCH"
+else
+    echo "Could not fetch the newest installer; using the installed one"
+    cp "$DIR/install.sh" "$SCRIPT"
+fi
+bash "$SCRIPT" --update --yes --branch "$BRANCH" --port "@PORT@"
+rc=$?
+rm -f "$SCRIPT"
+echo "@@RESULT $rc $(date +%s)"
+exit "$rc"
+EOF
+    sed -i -e "s|@INSTALL_DIR@|$INSTALL_DIR|g" -e "s|@DATA_DIR@|$DATA_DIR|g" -e "s|@LOG_DIR@|$UPDATE_LOG_DIR|g" \
+        -e "s|@SERVICE_NAME@|$SERVICE_NAME|g" -e "s|@PORT@|$PORT|g" "$UPDATE_SCRIPT"
+    chmod 755 "$UPDATE_SCRIPT"
+
+    cat > "/etc/systemd/system/$SERVICE_NAME-update.service" <<EOF
+[Unit]
+Description=Digital Signage update (requested from the admin page)
+
+[Service]
+Type=oneshot
+ExecStart=$UPDATE_SCRIPT
+TimeoutStartSec=30min
+EOF
+    # PathExists, and the script deletes the request first: one update per request.
+    cat > "/etc/systemd/system/$SERVICE_NAME-update.path" <<EOF
+[Unit]
+Description=Watch for update requests from the Digital Signage admin page
+
+[Path]
+PathExists=$DATA_DIR/update-request
+Unit=$SERVICE_NAME-update.service
+
+[Install]
+WantedBy=multi-user.target
+EOF
+    systemctl daemon-reload
+    systemctl enable --quiet "$SERVICE_NAME-update.path"
+    systemctl start "$SERVICE_NAME-update.path" 2>/dev/null || true
+    ok "Updates from the admin page enabled"
+}
+
+remove_update_service() {
+    systemctl disable --now "$SERVICE_NAME-update.path" 2>/dev/null || true
+    rm -f "/etc/systemd/system/$SERVICE_NAME-update.path" "/etc/systemd/system/$SERVICE_NAME-update.service" \
+        "$UPDATE_SCRIPT"
+    systemctl daemon-reload
+}
+
 do_install() {
     detect_user
     install_packages
@@ -494,6 +581,7 @@ do_install() {
     build_frontend
     choose_nginx
     install_service
+    install_update_service
     setup_nginx
     install_browser_policy
     choose_kiosk
@@ -512,6 +600,7 @@ do_update() {
     build_frontend
     choose_nginx
     install_service
+    install_update_service
     setup_nginx
     install_browser_policy
     choose_kiosk
@@ -527,6 +616,7 @@ do_repair() {
     [[ -f "$INSTALL_DIR/frontend/dist/index.html" ]] || build_frontend
     choose_nginx
     install_service
+    install_update_service
     setup_nginx
     install_browser_policy
     choose_kiosk
@@ -550,6 +640,7 @@ do_uninstall() {
     fi
     remove_browser_policy
     remove_kiosk
+    remove_update_service
     rm -rf "$INSTALL_DIR"
     ok "Uninstalled. A backup of your settings is in /var/backups/digital-signage/"
 }

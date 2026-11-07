@@ -9,7 +9,16 @@
   display, restart the browser, restart the Pi, and take a screenshot of the TV.
 - **Monitoring**: optional check-ins to healthchecks.io (or similar); reports a failure
   when the dashboard on the TV stops updating, with a grace period after boot.
+- **Updates** section in admin: check for a newer version and update with one click,
+  with the installer's output shown live. A root path unit runs the update; the app
+  only requests it.
 - Pause/resume button and "Fill the screen" poster layout for announcements.
+
+### Fixed
+- `install.sh --update` without `--branch` switched to `main`; it now keeps the
+  installed branch and remote.
+- The kiosk helper reports failed screenshots, finds the Wayland display itself, and
+  restarts itself after an update.
 
 ### Changed
 - The mouse pointer is hidden on the display.

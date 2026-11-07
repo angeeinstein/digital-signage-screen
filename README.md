@@ -38,6 +38,10 @@ set a new password (you will be asked to). Set the location, pick your stop,
 and save. The display at `http://<pi-address>:8080/` picks up changes within a
 few seconds.
 
+**Updating:** admin → **Updates** → "Update now" runs the update on the Pi and
+shows its output live; the dashboard is offline for 1–3 minutes in between.
+Updates stay on the installed branch.
+
 Running `install.sh` again on an installed system offers **Update**, **Repair** and
 **Uninstall**. The same actions are available without the menu:
 

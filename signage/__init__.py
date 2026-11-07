@@ -31,6 +31,7 @@ def create_app(data_dir: str | os.PathLike | None = None, start_pollers: bool | 
     from .services import Services
     from .share import ShareHub
     from .share_api import bp as share_bp
+    from .updates import Updater
     from .util import make_session
 
     logging.basicConfig(level=os.environ.get("SIGNAGE_LOG_LEVEL", "INFO"),
@@ -67,6 +68,7 @@ def create_app(data_dir: str | os.PathLike | None = None, start_pollers: bool | 
         "signage.announcements": announcements,
         "signage.share": ShareHub(),
         "signage.kiosk": kiosk,
+        "signage.updater": Updater(data),
         "signage.public_url": PublicUrl(data / "public_url.json", lambda: config.get()["share"]["public_url"]),
     })
 
